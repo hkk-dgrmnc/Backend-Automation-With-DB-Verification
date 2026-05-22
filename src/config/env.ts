@@ -19,9 +19,5 @@ export const env = {
       username: getStringEnv('PROJECT_AUTH_USERNAME'),
       password: getStringEnv('PROJECT_AUTH_PASSWORD')
     }
-  },
-  auth: {
-    username: getStringEnv('AUTH_USERNAME'),
-    password: getStringEnv('AUTH_PASSWORD')
   }
 };

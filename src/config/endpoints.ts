@@ -1,18 +1,17 @@
 export const endpoints = {
-  example: {
-    products: '/products',
-    productById: (productId: number | string) => `/products/${productId}`
-  },
-  auth: {
-    login: '/auth/login'
-  },
   project: {
     auth: {
       login: '/api_yonetim/api/Auth/Login'
     },
     musteriKarti: {
-      getAllWithPaging: (pageSize: number | string, page: number | string) =>
-        `/api_musteri/MusteriKarti/GetAllMusteriKartiWithPaging?PageSize=${pageSize}&Page=${page}`
+      getAllWithPaging: (params: Record<string, number | string>) => {
+        const queryParams = new URLSearchParams({
+          PageSize: String(params.pageSize),
+          Page: String(params.page)
+        });
+
+        return `/api_musteri/MusteriKarti/GetAllMusteriKartiWithPaging?${queryParams.toString()}`;
+      }
     }
   }
 };
