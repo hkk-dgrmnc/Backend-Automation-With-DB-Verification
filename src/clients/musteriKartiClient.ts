@@ -1,5 +1,5 @@
 import type { APIRequestContext, APIResponse } from '@playwright/test';
-import { endpoints } from '../../config/endpoints';
+import { endpoints } from '../config/endpoints';
 
 export class MusteriKartiClient {
   constructor(private readonly request: APIRequestContext) {}
@@ -8,7 +8,7 @@ export class MusteriKartiClient {
     pagingParams: Record<string, number | string>,
     headers: Record<string, string>
   ): Promise<APIResponse> {
-    return this.request.get(endpoints.project.musteriKarti.getAllWithPaging(pagingParams), {
+    return this.request.get(endpoints.musteriKarti.getAllWithPaging(pagingParams), {
       headers: {
         Accept: 'application/json',
         ...headers

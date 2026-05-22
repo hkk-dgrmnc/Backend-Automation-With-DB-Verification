@@ -26,7 +26,7 @@ const sensitiveKeys = [
 type LogContext = {
   testTitle: string;
   testFile: string;
-  projectName: string;
+  runnerName: string;
   retry: number;
   workerIndex: number;
 };
@@ -101,7 +101,7 @@ function buildLogContext(testInfo: TestInfo): LogContext {
   return {
     testTitle: testInfo.title,
     testFile: relative(process.cwd(), testInfo.file),
-    projectName: testInfo.project.name,
+    runnerName: testInfo.project.name,
     retry: testInfo.retry,
     workerIndex: testInfo.workerIndex
   };
@@ -119,8 +119,8 @@ function getContextPrefix() {
     ` [DOSYA="${escapeLogLabel(context.testFile)}"]`
   ];
 
-  if (context.projectName) {
-    parts.push(` [PROJECT="${escapeLogLabel(context.projectName)}"]`);
+  if (context.runnerName) {
+    parts.push(` [RUNNER="${escapeLogLabel(context.runnerName)}"]`);
   }
 
   parts.push(` [WORKER=${context.workerIndex}]`);

@@ -2,7 +2,7 @@
 
 TypeScript + Playwright Test tabanli API automation projesidir.
 
-Bu repo artik sadece gercek proje akisina gore ilerler. Eski `example` domain dosyalari bilerek kaldirildi.
+Bu repo tek backend projesi icin ilerler. Eski `example` domain dosyalari ve gereksiz ic ice klasorler kaldirilmistir.
 
 ## Temel Komutlar
 
@@ -12,39 +12,39 @@ npm run typecheck
 npm test
 ```
 
-Gercek proje API testleri varsayilan olarak kapali gelir:
+Gercek API testleri varsayilan olarak kapali gelir:
 
 ```env
-PROJECT_TESTS_ENABLED=false
+TESTS_ENABLED=false
 ```
 
 Gercek API'ye istek atmak icin `.env` dosyasinda bunu acmak gerekir:
 
 ```env
-PROJECT_TESTS_ENABLED=true
-PROJECT_BASE_URL=https://dev-mys.ptt.gov.tr
-PROJECT_AUTH_USERNAME=
-PROJECT_AUTH_PASSWORD=
+TESTS_ENABLED=true
+BASE_URL=https://dev-mys.ptt.gov.tr
+AUTH_USERNAME=
+AUTH_PASSWORD=
 ```
 
 ## Proje Yapisi
 
-Gercek proje dosyalari `project` altinda tutulur:
+Tek proje kullanildigi icin dosyalar dogrudan ana klasorlerde tutulur:
 
 ```txt
-src/clients/project/
-tests/project/
-tests/project/data/
-tests/project/fixtures/
+src/clients/
+tests/
+tests/data/
+tests/fixtures/
 ```
 
 Yeni domain eklerken ayni pattern korunur:
 
 ```txt
-src/clients/project/<domain>Client.ts
-tests/project/<domain>.spec.ts
-tests/project/data/<domain>Payloads.ts
-tests/project/data/<domain>Params.ts
+src/clients/<domain>Client.ts
+tests/<domain>.spec.ts
+tests/data/<domain>Payloads.ts
+tests/data/<domain>Params.ts
 ```
 
 ## Endpoint Kurali
@@ -56,13 +56,14 @@ Test veya client dosyalarinda full URL yazilmaz.
 Dogru kullanim:
 
 ```ts
-endpoints.project.auth.login
+endpoints.auth.login;
+endpoints.musteriKarti.getAllWithPaging(params);
 ```
 
 Base URL `.env` uzerinden gelir:
 
 ```env
-PROJECT_BASE_URL=https://dev-mys.ptt.gov.tr
+BASE_URL=https://dev-mys.ptt.gov.tr
 ```
 
 ## Client Kurali
@@ -82,13 +83,13 @@ Client icinde sunlar bulunmaz:
 Request body gerekiyorsa:
 
 ```txt
-tests/project/data/<domain>Payloads.ts
+tests/data/<domain>Payloads.ts
 ```
 
 Query param gerekiyorsa:
 
 ```txt
-tests/project/data/<domain>Params.ts
+tests/data/<domain>Params.ts
 ```
 
 Test data dosyalari sadece plain JSON body veya query param objesi uretir.
@@ -108,10 +109,10 @@ Spec dosyalari business akisini yonetir:
 
 ## Token Kullanimi
 
-Project token yonetimi:
+Token yonetimi:
 
 ```txt
-src/utils/projectTokenManager.ts
+src/utils/tokenManager.ts
 ```
 
 Login testi token'i response icinden cikarip cache'e koyabilir.
@@ -119,7 +120,7 @@ Login testi token'i response icinden cikarip cache'e koyabilir.
 Diger testler token header almak icin sunu kullanir:
 
 ```ts
-getProjectAuthorizationHeaders(projectRequest)
+getAuthorizationHeaders(apiRequest);
 ```
 
 ## Database Verification
@@ -133,19 +134,19 @@ src/database/dbClient.ts
 
 Bu proje database'i test etmez. Database sadece API sonucu veya API isleminin persistence durumunu dogrulamak icin kullanilir.
 
-Gercek DB verification eklenecegi zaman dosyalar domain bazli acilir:
+Gercek database verification eklenecegi zaman dosyalar domain bazli acilir:
 
 ```txt
-src/database/queries/project/<domain>Queries.ts
-src/database/repositories/project/<domain>Repository.ts
-tests/project/<domain>DatabaseVerification.spec.ts
+src/database/queries/<domain>Queries.ts
+src/database/repositories/<domain>Repository.ts
+tests/<domain>DatabaseVerification.spec.ts
 ```
 
 Kurallar:
 
 - Test dosyasinda raw SQL yazilmaz.
 - Test dosyasinda database connection olusturulmaz.
-- SQL sadece `src/database/queries/project` altinda olur.
+- SQL sadece `src/database/queries` altinda olur.
 - Repository sadece database query calistirir.
 - Repository API cagrisi yapmaz.
 - API client database query calistirmaz.

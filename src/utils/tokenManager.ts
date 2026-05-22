@@ -1,8 +1,8 @@
 import type { APIRequestContext } from '@playwright/test';
-import { ProjectAuthClient } from '../clients/project/authClient';
+import { AuthClient } from '../clients/authClient';
 import { env } from '../config/env';
 
-let cachedProjectToken: string | undefined;
+let cachedAuthToken: string | undefined;
 
 function findTokenValue(body: unknown): string | undefined {
   if (!body || typeof body !== 'object') {
@@ -30,7 +30,7 @@ function findTokenValue(body: unknown): string | undefined {
   return undefined;
 }
 
-export function extractProjectAuthToken(body: unknown) {
+export function extractAuthToken(body: unknown) {
   const token = findTokenValue(body);
 
   if (!token) {
@@ -40,46 +40,46 @@ export function extractProjectAuthToken(body: unknown) {
   return token;
 }
 
-export function cacheProjectAuthToken(token: string) {
-  cachedProjectToken = token;
+export function cacheAuthToken(token: string) {
+  cachedAuthToken = token;
 }
 
-export function getCachedProjectAuthToken() {
-  return cachedProjectToken;
+export function getCachedAuthToken() {
+  return cachedAuthToken;
 }
 
-export function clearProjectAuthToken() {
-  cachedProjectToken = undefined;
+export function clearAuthToken() {
+  cachedAuthToken = undefined;
 }
 
-export async function getProjectAuthToken(request: APIRequestContext) {
-  if (cachedProjectToken) {
-    return cachedProjectToken;
+export async function getAuthToken(request: APIRequestContext) {
+  if (cachedAuthToken) {
+    return cachedAuthToken;
   }
 
-  if (!env.project.auth.username || !env.project.auth.password) {
-    throw new Error('PROJECT_AUTH_USERNAME ve PROJECT_AUTH_PASSWORD set edilmeden project auth token alınamaz.');
+  if (!env.auth.username || !env.auth.password) {
+    throw new Error('AUTH_USERNAME ve AUTH_PASSWORD set edilmeden auth token alınamaz.');
   }
 
-  const authClient = new ProjectAuthClient(request);
+  const authClient = new AuthClient(request);
   const response = await authClient.login({
-    userName: env.project.auth.username,
-    password: env.project.auth.password
+    userName: env.auth.username,
+    password: env.auth.password
   });
 
   if (!response.ok()) {
-    throw new Error(`Project token request başarısız oldu. Status: ${response.status()}`);
+    throw new Error(`Token request başarısız oldu. Status: ${response.status()}`);
   }
 
   const body = await response.json();
-  const token = extractProjectAuthToken(body);
-  cacheProjectAuthToken(token);
+  const token = extractAuthToken(body);
+  cacheAuthToken(token);
 
   return token;
 }
 
-export async function getProjectAuthorizationHeaders(request: APIRequestContext) {
-  const token = await getProjectAuthToken(request);
+export async function getAuthorizationHeaders(request: APIRequestContext) {
+  const token = await getAuthToken(request);
 
   return {
     Authorization: `Bearer ${token}`
