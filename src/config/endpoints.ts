@@ -5,5 +5,14 @@ export const endpoints = {
   },
   auth: {
     login: '/auth/login'
+  },
+  project: {
+    auth: {
+      login: '/api_yonetim/api/Auth/Login'
+    },
+    musteriKarti: {
+      getAllWithPaging: (pageSize: number | string, page: number | string) =>
+        `/api_musteri/MusteriKarti/GetAllMusteriKartiWithPaging?PageSize=${pageSize}&Page=${page}`
+    }
   }
 };

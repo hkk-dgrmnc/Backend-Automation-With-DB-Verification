@@ -12,6 +12,14 @@ export const env = {
     includeDbQueries: getBooleanEnv('LOG_DB_QUERIES', false),
     maxBodyLength: getNumberEnv('LOG_MAX_BODY_LENGTH', 4000, 1)
   },
+  project: {
+    baseUrl: getStringEnv('PROJECT_BASE_URL', 'https://dev-mys.ptt.gov.tr'),
+    testsEnabled: getBooleanEnv('PROJECT_TESTS_ENABLED', false),
+    auth: {
+      username: getStringEnv('PROJECT_AUTH_USERNAME'),
+      password: getStringEnv('PROJECT_AUTH_PASSWORD')
+    }
+  },
   auth: {
     username: getStringEnv('AUTH_USERNAME'),
     password: getStringEnv('AUTH_PASSWORD')
