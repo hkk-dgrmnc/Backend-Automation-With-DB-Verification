@@ -1,12 +1,12 @@
-import { AuthClient } from '../src/clients/authClient';
-import { endpoints } from '../src/config/endpoints';
-import { env } from '../src/config/env';
-import { expectOkResponse } from '../src/utils/assertions';
-import { logApiRequest, logApiResponse } from '../src/utils/logger';
-import { cacheAuthToken, extractAuthToken } from '../src/utils/tokenManager';
-import { readJson } from '../src/utils/responseHelper';
-import { createLoginPayload } from './data/authPayloads';
-import { expect, test } from './fixtures/apiTest';
+import { AuthClient } from '../../src/clients/authClient';
+import { endpoints } from '../../src/config/endpoints';
+import { env } from '../../src/config/env';
+import { expectOkResponse } from '../../src/utils/assertions';
+import { logApiRequest, logApiResponse } from '../../src/utils/logger';
+import { cacheAuthToken, extractAuthToken } from '../../src/utils/tokenManager';
+import { readJson } from '../../src/utils/responseHelper';
+import { createLoginPayload } from '../data/authPayloads';
+import { expect, test } from '../fixtures/apiTest';
 
 test.describe('Auth API', () => {
   test.skip(!env.testsEnabled, 'Gerçek API testleri kapalı. Çalıştırmak için TESTS_ENABLED=true yap.');

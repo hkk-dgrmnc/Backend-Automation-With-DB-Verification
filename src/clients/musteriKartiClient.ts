@@ -15,4 +15,15 @@ export class MusteriKartiClient {
       }
     });
   }
+
+  async getAllMusteriKartiNames(
+    headers: Record<string, string> = {}
+  ): Promise<APIResponse> {
+    return this.request.get(endpoints.musteriKarti.getAllMusteriKartiNames, {
+      headers: {
+        accept: 'application/json',
+        ...headers
+      }
+    });
+  }
 }

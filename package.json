@@ -6,6 +6,8 @@
   "scripts": {
     "test": "playwright test",
     "test:api": "playwright test tests",
+    "test:generator": "node --test tools/api-test-generator/test/*.test.js",
+    "generate:api-test": "node tools/api-test-generator/index.js",
     "report": "playwright show-report",
     "typecheck": "tsc --noEmit"
   },

@@ -12,6 +12,20 @@ npm run typecheck
 npm test
 ```
 
+Yeni bir API icin endpoint, client, test data ve basarili status testi taslagi
+olusturmak icin yerel generator kullanilabilir:
+
+```bash
+npm run generate:api-test
+```
+
+Generator internete veya yapay zeka servisine baglanmaz. Detayli kullanim ve
+desteklenen cURL kapsami icin:
+
+```txt
+tools/api-test-generator/README.md
+```
+
 Gercek API testleri varsayilan olarak kapali gelir:
 
 ```env
@@ -29,11 +43,13 @@ AUTH_PASSWORD=
 
 ## Proje Yapisi
 
-Tek proje kullanildigi icin dosyalar dogrudan ana klasorlerde tutulur:
+Tek proje kullanildigi icin domain bazli gereksiz ic ice klasorler acilmaz.
+Spec dosyalari test kodunu duzenli tutmak icin `tests/specs` altinda tutulur:
 
 ```txt
 src/clients/
 tests/
+tests/specs/
 tests/data/
 tests/fixtures/
 ```
@@ -42,7 +58,7 @@ Yeni domain eklerken ayni pattern korunur:
 
 ```txt
 src/clients/<domain>Client.ts
-tests/<domain>.spec.ts
+tests/specs/<domain>.spec.ts
 tests/data/<domain>Payloads.ts
 tests/data/<domain>Params.ts
 ```
@@ -139,7 +155,7 @@ Gercek database verification eklenecegi zaman dosyalar domain bazli acilir:
 ```txt
 src/database/queries/<domain>Queries.ts
 src/database/repositories/<domain>Repository.ts
-tests/<domain>DatabaseVerification.spec.ts
+tests/specs/<domain>DatabaseVerification.spec.ts
 ```
 
 Kurallar:
