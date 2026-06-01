@@ -193,6 +193,13 @@ export function logInfo(title: string, value?: unknown) {
 }
 
 /**
+ * Dikkat cekmesi gereken bilgi logunu ANSI destekleyen terminallerde kalin cyan basar.
+ */
+export function logHighlight(title: string, value?: unknown) {
+  writeLog('info', `\x1b[1;36m${title}\x1b[0m`, value);
+}
+
+/**
  * Uyarı logu basar.
  * `.env` içinde `LOG_LEVEL=warn`, `info` veya `debug` olduğunda çalışır.
  */

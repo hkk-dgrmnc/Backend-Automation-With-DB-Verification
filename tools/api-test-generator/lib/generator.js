@@ -546,6 +546,7 @@ function updateSpec(workspace, domain, endpointGroup, specFile, methodName, test
     content = ensureNamedImport(content, '../../src/config/env', ['env']);
     content = ensureNamedImport(content, '../../src/utils/assertions', ['expectStatus']);
     content = ensureNamedImport(content, '../../src/utils/logger', ['logApiRequest', 'logApiResponseWithBody']);
+    content = ensureNamedImport(content, '../../src/utils/testDataGenerator', ['generateTestString']);
 
     if (parsedCurl.requiresAuth) {
       content = ensureNamedImport(content, '../../src/utils/tokenManager', ['getAuthorizationHeaders']);
@@ -587,6 +588,7 @@ function updateSpec(workspace, domain, endpointGroup, specFile, methodName, test
   content = ensureNamedImport(content, '../../src/config/endpoints', ['endpoints']);
   content = ensureNamedImport(content, '../../src/utils/assertions', ['expectStatus']);
   content = ensureNamedImport(content, '../../src/utils/logger', ['logApiRequest', 'logApiResponseWithBody']);
+  content = ensureNamedImport(content, '../../src/utils/testDataGenerator', ['generateTestString']);
 
   if (parsedCurl.requiresAuth) {
     content = ensureNamedImport(content, '../../src/utils/tokenManager', ['getAuthorizationHeaders']);

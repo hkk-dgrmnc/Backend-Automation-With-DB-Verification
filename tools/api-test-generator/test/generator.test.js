@@ -122,6 +122,10 @@ test('GET cURL icin endpoint, client, params ve basarili spec olusturur', () => 
   assert.match(read(rootDir, 'src/config/endpoints.ts'), /getAllWithPaging: '\/api\/cards'/);
   assert.match(read(rootDir, 'src/clients/customerCardClient.ts'), /params: Record<string, string>/);
   assert.match(read(rootDir, 'tests/data/customerCardParams.ts'), /"PageSize": "10"/);
+  assert.match(
+    read(rootDir, 'tests/specs/customerCard.spec.ts'),
+    /import \{ generateTestString \} from '\.\.\/\.\.\/src\/utils\/testDataGenerator';/
+  );
   assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /await logApiResponseWithBody\(response\)/);
   assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /expectStatus\(response, 200\)/);
   assert.equal(read(rootDir, 'tests/specs/customerCard.spec.ts').includes('secret'), false);

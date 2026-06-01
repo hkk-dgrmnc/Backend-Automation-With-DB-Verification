@@ -12,5 +12,8 @@ export const endpoints = {
       return `/api_musteri/MusteriKarti/GetAllMusteriKartiWithPaging?${queryParams.toString()}`;
     },
     getAllMusteriKartiNames: '/api_musteri/MusteriKarti/GetAllMusteriKartiNames'
+  },
+  kampanya: {
+    addKampanyaKategori: '/api_kampanya/Kampanya/AddKampanyaKategori'
   }
 };
