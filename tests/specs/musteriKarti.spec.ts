@@ -2,7 +2,7 @@ import { MusteriKartiClient } from '../../src/clients/musteriKartiClient';
 import { endpoints } from '../../src/config/endpoints';
 import { env } from '../../src/config/env';
 import { expectFieldsEqual, expectObjectHasFields, expectStatus } from '../../src/utils/assertions';
-import { logApiRequest, logApiResponse } from '../../src/utils/logger';
+import { logApiRequest, logApiResponse, logApiResponseWithBody } from '../../src/utils/logger';
 import { getAuthorizationHeaders } from '../../src/utils/tokenManager';
 import { readJson } from '../../src/utils/responseHelper';
 import { getAllMusteriKartiPagingParams } from '../data/musteriKartiParams';
@@ -38,6 +38,8 @@ test.describe('Musteri Karti API', () => {
     logApiRequest('GET', endpoints.musteriKarti.getAllMusteriKartiNames, undefined, authHeaders);
 
     const response = await musteriKartiClient.getAllMusteriKartiNames(authHeaders);
+
+    await logApiResponseWithBody(response);
 
     expectStatus(response, 200);
   });

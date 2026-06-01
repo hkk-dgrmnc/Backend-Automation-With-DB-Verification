@@ -1,6 +1,30 @@
 import dotenv from 'dotenv';
+import { existsSync } from 'fs';
+import { dirname, resolve } from 'path';
 
-dotenv.config();
+function findEnvPath(startDirectory: string) {
+  let currentDirectory = startDirectory;
+
+  while (true) {
+    const envPath = resolve(currentDirectory, '.env');
+
+    if (existsSync(envPath)) {
+      return envPath;
+    }
+
+    const parentDirectory = dirname(currentDirectory);
+
+    if (parentDirectory === currentDirectory) {
+      return undefined;
+    }
+
+    currentDirectory = parentDirectory;
+  }
+}
+
+const envPath = findEnvPath(__dirname);
+
+dotenv.config(envPath ? { path: envPath } : undefined);
 
 function readRawEnv(name: string) {
   const value = process.env[name];

@@ -253,6 +253,37 @@ export function logApiResponse(response: APIResponse, body?: unknown) {
 }
 
 /**
+ * Response body'yi loglama icin guvenli sekilde okur.
+ *
+ * JSON olmayan veya bos response'larda loglama yuzunden testi bozmaz.
+ */
+export async function logApiResponseWithBody(response: APIResponse) {
+  if (!env.logging.includePayloads) {
+    logApiResponse(response);
+    return;
+  }
+
+  try {
+    const text = await response.text();
+
+    if (!text) {
+      logApiResponse(response, text);
+      return;
+    }
+
+    try {
+      logApiResponse(response, JSON.parse(text));
+    } catch {
+      logApiResponse(response, text);
+    }
+  } catch (error) {
+    logApiResponse(response, {
+      logReadError: error instanceof Error ? error.message : String(error)
+    });
+  }
+}
+
+/**
  * Database query bilgisini loglar.
  *
  * Bu helper sadece merkezi dbClient tarafından kullanılır.

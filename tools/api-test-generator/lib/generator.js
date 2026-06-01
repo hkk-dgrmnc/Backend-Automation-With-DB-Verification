@@ -525,6 +525,8 @@ function renderTest(domain, endpointGroup, methodName, testName, expectedStatus,
   lines.push('');
   lines.push(`    const response = await ${variableName}.${methodName}(${clientArguments.join(', ')});`);
   lines.push('');
+  lines.push('    await logApiResponseWithBody(response);');
+  lines.push('');
   lines.push(`    expectStatus(response, ${expectedStatus});`);
   lines.push('  });');
 
@@ -543,7 +545,7 @@ function updateSpec(workspace, domain, endpointGroup, specFile, methodName, test
     content = ensureNamedImport(content, '../../src/config/endpoints', ['endpoints']);
     content = ensureNamedImport(content, '../../src/config/env', ['env']);
     content = ensureNamedImport(content, '../../src/utils/assertions', ['expectStatus']);
-    content = ensureNamedImport(content, '../../src/utils/logger', ['logApiRequest']);
+    content = ensureNamedImport(content, '../../src/utils/logger', ['logApiRequest', 'logApiResponseWithBody']);
 
     if (parsedCurl.requiresAuth) {
       content = ensureNamedImport(content, '../../src/utils/tokenManager', ['getAuthorizationHeaders']);
@@ -584,7 +586,7 @@ function updateSpec(workspace, domain, endpointGroup, specFile, methodName, test
   content = ensureNamedImport(content, `../../src/clients/${domain}Client`, [className]);
   content = ensureNamedImport(content, '../../src/config/endpoints', ['endpoints']);
   content = ensureNamedImport(content, '../../src/utils/assertions', ['expectStatus']);
-  content = ensureNamedImport(content, '../../src/utils/logger', ['logApiRequest']);
+  content = ensureNamedImport(content, '../../src/utils/logger', ['logApiRequest', 'logApiResponseWithBody']);
 
   if (parsedCurl.requiresAuth) {
     content = ensureNamedImport(content, '../../src/utils/tokenManager', ['getAuthorizationHeaders']);
