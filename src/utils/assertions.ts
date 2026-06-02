@@ -56,6 +56,13 @@ export function expectFieldType(
   expectedType: 'string' | 'number' | 'boolean' | 'object',
   message?: string
 ) {
+  if (expectedType === 'object') {
+    expect(value, message).not.toBeNull();
+    expect(typeof value, message).toBe('object');
+    expect(Array.isArray(value), message).toBeFalsy();
+    return;
+  }
+
   expect(typeof value, message).toBe(expectedType);
 }
 
@@ -156,12 +163,30 @@ export function expectOneOf<T>(actual: T, expectedValues: T[], message?: string)
 }
 
 /**
- * String değerin parse edilebilir bir tarih formatında olduğunu doğrular.
+ * String değerin ISO 8601 tarih veya timestamp formatında olduğunu doğrular.
  * Örnek: createdAt alanı tarih olarak gelmeli ise `expectIsoDateString(body.createdAt)` kullanılır.
- * Bu helper tarih değerinin business olarak doğru zaman olup olmadığını değil, parse edilebilir olduğunu kontrol eder.
+ * Bu helper tarih değerinin business olarak doğru zaman olup olmadığını kontrol etmez.
  */
 export function expectIsoDateString(value: unknown, message?: string) {
   expectNonEmptyString(value, message);
+
+  const isoDatePattern =
+    /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])(?:T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)?)?$/;
+  const match = isoDatePattern.exec(value as string);
+
+  expect(match, message).not.toBeNull();
+
+  if (!match) {
+    return;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const isLeapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, isLeapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+  expect(day, message).toBeLessThanOrEqual(daysInMonth[month - 1]);
 
   const parsedTime = Date.parse(value as string);
   expect(Number.isNaN(parsedTime), message).toBeFalsy();

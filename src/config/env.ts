@@ -15,6 +15,8 @@ export const env = {
   },
   auth: {
     username: getStringEnv('AUTH_USERNAME'),
-    password: getStringEnv('AUTH_PASSWORD')
+    password: getStringEnv('AUTH_PASSWORD'),
+    tokenCacheTtlMs: getNumberEnv('AUTH_TOKEN_CACHE_TTL_MS', 300000, 1),
+    tokenExpirySkewMs: getNumberEnv('AUTH_TOKEN_EXPIRY_SKEW_MS', 30000, 0)
   }
 };

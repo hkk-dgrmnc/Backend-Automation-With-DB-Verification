@@ -2,7 +2,37 @@ import type { APIRequestContext } from '@playwright/test';
 import { AuthClient } from '../clients/authClient';
 import { env } from '../config/env';
 
-let cachedAuthToken: string | undefined;
+type CachedAuthToken = {
+  token: string;
+  expiresAtMs: number;
+};
+
+let cachedAuthToken: CachedAuthToken | undefined;
+let pendingAuthToken: Promise<string> | undefined;
+
+function findJwtExpiryMs(token: string) {
+  const payload = token.split('.')[1];
+
+  if (!payload) {
+    return undefined;
+  }
+
+  try {
+    const body = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Record<string, unknown>;
+
+    if (typeof body.exp === 'number' && Number.isFinite(body.exp)) {
+      return body.exp * 1000;
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+}
+
+function isTokenUsable(cachedToken: CachedAuthToken) {
+  return Date.now() + env.auth.tokenExpirySkewMs < cachedToken.expiresAtMs;
+}
 
 function findTokenValue(body: unknown): string | undefined {
   if (!body || typeof body !== 'object') {
@@ -41,22 +71,26 @@ export function extractAuthToken(body: unknown) {
 }
 
 export function cacheAuthToken(token: string) {
-  cachedAuthToken = token;
+  cachedAuthToken = {
+    token,
+    expiresAtMs: findJwtExpiryMs(token) ?? Date.now() + env.auth.tokenCacheTtlMs
+  };
 }
 
 export function getCachedAuthToken() {
-  return cachedAuthToken;
+  if (!cachedAuthToken || !isTokenUsable(cachedAuthToken)) {
+    cachedAuthToken = undefined;
+    return undefined;
+  }
+
+  return cachedAuthToken.token;
 }
 
 export function clearAuthToken() {
   cachedAuthToken = undefined;
 }
 
-export async function getAuthToken(request: APIRequestContext) {
-  if (cachedAuthToken) {
-    return cachedAuthToken;
-  }
-
+async function requestAuthToken(request: APIRequestContext) {
   if (!env.auth.username || !env.auth.password) {
     throw new Error('AUTH_USERNAME ve AUTH_PASSWORD set edilmeden auth token alınamaz.');
   }
@@ -76,6 +110,24 @@ export async function getAuthToken(request: APIRequestContext) {
   cacheAuthToken(token);
 
   return token;
+}
+
+export async function getAuthToken(request: APIRequestContext) {
+  const cachedToken = getCachedAuthToken();
+
+  if (cachedToken) {
+    return cachedToken;
+  }
+
+  const currentAuthTokenRequest = pendingAuthToken ??= requestAuthToken(request);
+
+  try {
+    return await currentAuthTokenRequest;
+  } finally {
+    if (pendingAuthToken === currentAuthTokenRequest) {
+      pendingAuthToken = undefined;
+    }
+  }
 }
 
 export async function getAuthorizationHeaders(request: APIRequestContext) {

@@ -139,6 +139,10 @@ Diger testler token header almak icin sunu kullanir:
 getAuthorizationHeaders(apiRequest);
 ```
 
+Token JWT formatindaysa cache suresi `exp` alanindan okunur. JWT olmayan token'lar
+icin `.env` icindeki `AUTH_TOKEN_CACHE_TTL_MS` kullanilir. Token bitimine
+`AUTH_TOKEN_EXPIRY_SKEW_MS` kadar sure kaldiginda yeni token alinir.
+
 ## Database Verification
 
 Database core altyapisi korunur:
