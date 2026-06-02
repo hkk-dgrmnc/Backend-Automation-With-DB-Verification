@@ -1,8 +1,8 @@
 import { AuthClient } from '../../src/clients/authClient';
 import { endpoints } from '../../src/config/endpoints';
 import { env } from '../../src/config/env';
-import { expectOkResponse } from '../../src/utils/assertions';
-import { logApiRequest, logApiResponse } from '../../src/utils/logger';
+import * as apiAssert from '../../src/utils/assertions';
+import * as logger from '../../src/utils/logger';
 import { cacheAuthToken, extractAuthToken } from '../../src/utils/tokenManager';
 import { readJson } from '../../src/utils/responseHelper';
 import { createLoginPayload } from '../data/authPayloads';
@@ -15,14 +15,14 @@ test.describe('Auth API', () => {
     const authClient = new AuthClient(apiRequest);
     const loginPayload = createLoginPayload();
 
-    logApiRequest('POST', endpoints.auth.login, loginPayload);
+    logger.logApiRequest('POST', endpoints.auth.login, loginPayload);
 
     const response = await authClient.login(loginPayload);
 
-    expectOkResponse(response);
+    apiAssert.expectOkResponse(response);
 
     const body = await readJson(response);
-    logApiResponse(response, body);
+    logger.logApiResponse(response, body);
 
     const token = extractAuthToken(body);
     cacheAuthToken(token);

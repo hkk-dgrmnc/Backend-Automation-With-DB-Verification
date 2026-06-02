@@ -123,6 +123,24 @@ Spec dosyalari business akisini yonetir:
 5. response body plain JSON olarak okunur
 6. gerekli alanlar assert edilir
 
+Generic API assertion helper'lari namespace import ile kullanilir:
+
+```ts
+import * as apiAssert from '../../src/utils/assertions';
+import { expect, test } from '../fixtures/apiTest';
+
+apiAssert.expectStatus(response, 200);
+expect(response.status()).toBe(200);
+```
+
+Test data generator helper'lari namespace import ile kullanilir:
+
+```ts
+import * as testDataGenerator from '../../src/utils/testDataGenerator';
+
+testDataGenerator.generateTestString('Otomasyon Kampanya', 4, 6);
+```
+
 ## Token Kullanimi
 
 Token yonetimi:
@@ -192,3 +210,11 @@ LOG_LEVEL=debug LOG_PAYLOADS=true LOG_DB_QUERIES=true npm test
 ```
 
 Hassas alanlar logger tarafindan maskelenir.
+
+Logger helper'lari namespace import ile kullanilir:
+
+```ts
+import * as logger from '../../src/utils/logger';
+
+logger.logApiRequest('GET', endpoints.musteriKarti.getAllMusteriKartiNames);
+```

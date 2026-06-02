@@ -124,10 +124,20 @@ test('GET cURL icin endpoint, client, params ve basarili spec olusturur', () => 
   assert.match(read(rootDir, 'tests/data/customerCardParams.ts'), /"PageSize": "10"/);
   assert.match(
     read(rootDir, 'tests/specs/customerCard.spec.ts'),
-    /import \{ generateTestString \} from '\.\.\/\.\.\/src\/utils\/testDataGenerator';/
+    /import \* as testDataGenerator from '\.\.\/\.\.\/src\/utils\/testDataGenerator';/
   );
-  assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /await logApiResponseWithBody\(response\)/);
-  assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /expectStatus\(response, 200\)/);
+  assert.match(
+    read(rootDir, 'tests/specs/customerCard.spec.ts'),
+    /import \* as apiAssert from '\.\.\/\.\.\/src\/utils\/assertions';/
+  );
+  assert.match(
+    read(rootDir, 'tests/specs/customerCard.spec.ts'),
+    /import \* as logger from '\.\.\/\.\.\/src\/utils\/logger';/
+  );
+  assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /import \{ expect, test \} from '\.\.\/fixtures\/apiTest';/);
+  assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /logger\.logApiRequest\(/);
+  assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /await logger\.logApiResponseWithBody\(response\)/);
+  assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /apiAssert\.expectStatus\(response, 200\)/);
   assert.equal(read(rootDir, 'tests/specs/customerCard.spec.ts').includes('secret'), false);
   assertTranspiles(rootDir, changedPaths);
 
@@ -165,8 +175,29 @@ test('mevcut domaine JSON body kullanan POST metodu ve payload ekler', () => {
   assert.match(read(rootDir, 'src/clients/customerCardClient.ts'), /async create\(\n\s+payload: Record<string, unknown>/);
   assert.match(read(rootDir, 'tests/data/customerCardPayloads.ts'), /"name": "Primary"/);
   assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /createPayload\(\)/);
-  assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /expectStatus\(response, 201\)/);
+  assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /apiAssert\.expectStatus\(response, 201\)/);
   assertTranspiles(rootDir, changedPaths);
+});
+
+test('mevcut spec fixture importunu expect ve test standardina tasir', () => {
+  const rootDir = createTempProject();
+  const specDirectory = path.join(rootDir, 'tests/specs');
+  fs.mkdirSync(specDirectory, { recursive: true });
+  fs.writeFileSync(
+    path.join(specDirectory, 'customerCard.spec.ts'),
+    "import { test } from '../fixtures/apiTest';\n\ntest.describe('CustomerCard API', () => {\n});\n"
+  );
+
+  generateApiTest({
+    rootDir,
+    domain: 'customerCard',
+    methodName: 'getCards',
+    testName: 'gets cards successfully',
+    expectedStatus: 200,
+    parsedCurl: parseCurl("curl 'https://example.test/api/cards'")
+  });
+
+  assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /import \{ expect, test \} from '\.\.\/fixtures\/apiTest';/);
 });
 
 test('endpoint grubu ve spec hedefi client domaininden ayri secilebilir', () => {

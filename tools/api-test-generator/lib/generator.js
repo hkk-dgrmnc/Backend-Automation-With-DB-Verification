@@ -484,6 +484,38 @@ function ensureNamedImport(content, modulePath, names) {
   return `${content.slice(0, insertionIndex)}${importLine}${content.slice(insertionIndex)}`;
 }
 
+function ensureNamespaceImport(content, modulePath, namespace) {
+  const modulePattern = escapeRegExp(modulePath);
+  const importPattern = new RegExp(`import\\s+\\*\\s+as\\s+${escapeRegExp(namespace)}\\s+from\\s+'${modulePattern}';`);
+
+  if (importPattern.test(content)) {
+    return content;
+  }
+
+  const importLine = `import * as ${namespace} from '${modulePath}';\n`;
+  const importMatches = [...content.matchAll(/^import .*;\n/gm)];
+
+  if (importMatches.length === 0) {
+    return `${importLine}${content}`;
+  }
+
+  const lastImport = importMatches[importMatches.length - 1];
+  const insertionIndex = lastImport.index + lastImport[0].length;
+  return `${content.slice(0, insertionIndex)}${importLine}${content.slice(insertionIndex)}`;
+}
+
+function ensureApiTestFixtureImport(content) {
+  const modulePath = '../fixtures/apiTest';
+  const modulePattern = escapeRegExp(modulePath);
+  const importPattern = new RegExp(`import\\s+\\{[^}]*\\}\\s+from\\s+'${modulePattern}';`);
+
+  if (importPattern.test(content)) {
+    return content.replace(importPattern, `import { expect, test } from '${modulePath}';`);
+  }
+
+  return ensureNamedImport(content, modulePath, ['expect', 'test']);
+}
+
 function renderTest(domain, endpointGroup, methodName, testName, expectedStatus, parsedCurl, data) {
   const className = `${toPascalCase(domain)}Client`;
   const variableName = `${domain}Client`;
@@ -521,13 +553,13 @@ function renderTest(domain, endpointGroup, methodName, testName, expectedStatus,
     logArguments.push('authHeaders');
   }
 
-  lines.push(`    logApiRequest(${logArguments.join(', ')});`);
+  lines.push(`    logger.logApiRequest(${logArguments.join(', ')});`);
   lines.push('');
   lines.push(`    const response = await ${variableName}.${methodName}(${clientArguments.join(', ')});`);
   lines.push('');
-  lines.push('    await logApiResponseWithBody(response);');
+  lines.push('    await logger.logApiResponseWithBody(response);');
   lines.push('');
-  lines.push(`    expectStatus(response, ${expectedStatus});`);
+  lines.push(`    apiAssert.expectStatus(response, ${expectedStatus});`);
   lines.push('  });');
 
   return lines.join('\n');
@@ -544,9 +576,9 @@ function updateSpec(workspace, domain, endpointGroup, specFile, methodName, test
     content = ensureNamedImport(content, `../../src/clients/${domain}Client`, [className]);
     content = ensureNamedImport(content, '../../src/config/endpoints', ['endpoints']);
     content = ensureNamedImport(content, '../../src/config/env', ['env']);
-    content = ensureNamedImport(content, '../../src/utils/assertions', ['expectStatus']);
-    content = ensureNamedImport(content, '../../src/utils/logger', ['logApiRequest', 'logApiResponseWithBody']);
-    content = ensureNamedImport(content, '../../src/utils/testDataGenerator', ['generateTestString']);
+    content = ensureNamespaceImport(content, '../../src/utils/assertions', 'apiAssert');
+    content = ensureNamespaceImport(content, '../../src/utils/logger', 'logger');
+    content = ensureNamespaceImport(content, '../../src/utils/testDataGenerator', 'testDataGenerator');
 
     if (parsedCurl.requiresAuth) {
       content = ensureNamedImport(content, '../../src/utils/tokenManager', ['getAuthorizationHeaders']);
@@ -560,7 +592,7 @@ function updateSpec(workspace, domain, endpointGroup, specFile, methodName, test
       content = ensureNamedImport(content, `../data/${domain}Payloads`, [data.payloadFunctionName]);
     }
 
-    content = ensureNamedImport(content, '../fixtures/apiTest', ['test']);
+    content = ensureApiTestFixtureImport(content);
     content += [
       '',
       `test.describe('${toPascalCase(domain)} API', () => {`,
@@ -586,9 +618,10 @@ function updateSpec(workspace, domain, endpointGroup, specFile, methodName, test
 
   content = ensureNamedImport(content, `../../src/clients/${domain}Client`, [className]);
   content = ensureNamedImport(content, '../../src/config/endpoints', ['endpoints']);
-  content = ensureNamedImport(content, '../../src/utils/assertions', ['expectStatus']);
-  content = ensureNamedImport(content, '../../src/utils/logger', ['logApiRequest', 'logApiResponseWithBody']);
-  content = ensureNamedImport(content, '../../src/utils/testDataGenerator', ['generateTestString']);
+  content = ensureNamespaceImport(content, '../../src/utils/assertions', 'apiAssert');
+  content = ensureNamespaceImport(content, '../../src/utils/logger', 'logger');
+  content = ensureNamespaceImport(content, '../../src/utils/testDataGenerator', 'testDataGenerator');
+  content = ensureApiTestFixtureImport(content);
 
   if (parsedCurl.requiresAuth) {
     content = ensureNamedImport(content, '../../src/utils/tokenManager', ['getAuthorizationHeaders']);

@@ -1,12 +1,12 @@
 import { MusteriKartiClient } from '../../src/clients/musteriKartiClient';
 import { endpoints } from '../../src/config/endpoints';
 import { env } from '../../src/config/env';
-import { expectFieldsEqual, expectObjectHasFields, expectStatus } from '../../src/utils/assertions';
-import { logApiRequest, logApiResponse, logApiResponseWithBody } from '../../src/utils/logger';
+import * as apiAssert from '../../src/utils/assertions';
+import * as logger from '../../src/utils/logger';
 import { getAuthorizationHeaders } from '../../src/utils/tokenManager';
 import { readJson } from '../../src/utils/responseHelper';
 import { getAllMusteriKartiPagingParams } from '../data/musteriKartiParams';
-import { test } from '../fixtures/apiTest';
+import { expect, test } from '../fixtures/apiTest';
 
 test.describe('Musteri Karti API', () => {
   test.skip(!env.testsEnabled, 'Gerçek API testleri kapalı. Çalıştırmak için TESTS_ENABLED=true yap.');
@@ -16,18 +16,18 @@ test.describe('Musteri Karti API', () => {
     const pagingParams = getAllMusteriKartiPagingParams();
     const authHeaders = await getAuthorizationHeaders(apiRequest);
 
-    logApiRequest('GET', endpoints.musteriKarti.getAllWithPaging(pagingParams), undefined, authHeaders);
+    logger.logApiRequest('GET', endpoints.musteriKarti.getAllWithPaging(pagingParams), undefined, authHeaders);
 
     const response = await musteriKartiClient.getAllWithPaging(pagingParams, authHeaders);
 
-    expectStatus(response, 200);
+    apiAssert.expectStatus(response, 200);
 
     const body = await readJson(response);
-    logApiResponse(response, body);
+    logger.logApiResponse(response, body);
 
-    expectObjectHasFields(body, ['data', 'statusCode', 'isError']);
-    expectFieldsEqual(body.statusCode, 200);
-    expectFieldsEqual(body.isError, false);
+    apiAssert.expectObjectHasFields(body, ['data', 'statusCode', 'isError']);
+    apiAssert.expectFieldsEqual(body.statusCode, 200);
+    apiAssert.expectFieldsEqual(body.isError, false);
   });
 
   // api-test-generator:musteriKarti.getAllMusteriKartiNames
@@ -35,12 +35,12 @@ test.describe('Musteri Karti API', () => {
     const musteriKartiClient = new MusteriKartiClient(apiRequest);
     const authHeaders = await getAuthorizationHeaders(apiRequest);
 
-    logApiRequest('GET', endpoints.musteriKarti.getAllMusteriKartiNames, undefined, authHeaders);
+    logger.logApiRequest('GET', endpoints.musteriKarti.getAllMusteriKartiNames, undefined, authHeaders);
 
     const response = await musteriKartiClient.getAllMusteriKartiNames(authHeaders);
 
-    await logApiResponseWithBody(response);
+    await logger.logApiResponseWithBody(response);
 
-    expectStatus(response, 200);
+    apiAssert.expectStatus(response, 200);
   });
 });
