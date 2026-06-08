@@ -1,16 +1,14 @@
-'use strict';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { test } from 'node:test';
+import ts from 'typescript';
+import { parseCurl } from '../lib/curlParser';
+import { generateApiTest } from '../lib/generator';
+import { domainFromClientName, inferClientMethodName } from '../lib/naming';
 
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const test = require('node:test');
-const ts = require('typescript');
-const { parseCurl } = require('../lib/curlParser');
-const { generateApiTest } = require('../lib/generator');
-const { domainFromClientName, inferClientMethodName } = require('../lib/naming');
-
-function createTempProject() {
+function createTempProject(): string {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'api-test-generator-'));
   fs.mkdirSync(path.join(rootDir, 'src/config'), { recursive: true });
   fs.writeFileSync(
@@ -20,11 +18,11 @@ function createTempProject() {
   return rootDir;
 }
 
-function read(rootDir, relativePath) {
+function read(rootDir: string, relativePath: string): string {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
-function assertTranspiles(rootDir, relativePaths) {
+function assertTranspiles(rootDir: string, relativePaths: string[]): void {
   for (const relativePath of relativePaths.filter((item) => item.endsWith('.ts'))) {
     const result = ts.transpileModule(read(rootDir, relativePath), {
       compilerOptions: {
@@ -34,7 +32,9 @@ function assertTranspiles(rootDir, relativePaths) {
       fileName: relativePath,
       reportDiagnostics: true
     });
-    const errors = (result.diagnostics ?? []).filter((diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error);
+    const errors = (result.diagnostics ?? []).filter(
+      (diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error
+    );
     assert.equal(errors.length, 0, `${relativePath} TypeScript syntax hatasi iceriyor.`);
   }
 }
@@ -134,7 +134,10 @@ test('GET cURL icin endpoint, client, params ve basarili spec olusturur', () => 
     read(rootDir, 'tests/specs/customerCard.spec.ts'),
     /import \* as logger from '\.\.\/\.\.\/src\/utils\/logger';/
   );
-  assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /import \{ expect, test \} from '\.\.\/fixtures\/apiTest';/);
+  assert.match(
+    read(rootDir, 'tests/specs/customerCard.spec.ts'),
+    /import \{ expect, test \} from '\.\.\/fixtures\/apiTest';/
+  );
   assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /logger\.logApiRequest\(/);
   assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /await logger\.logApiResponseWithBody\(response\)/);
   assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /apiAssert\.expectStatus\(response, 200\)/);
@@ -197,7 +200,10 @@ test('mevcut spec fixture importunu expect ve test standardina tasir', () => {
     parsedCurl: parseCurl("curl 'https://example.test/api/cards'")
   });
 
-  assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /import \{ expect, test \} from '\.\.\/fixtures\/apiTest';/);
+  assert.match(
+    read(rootDir, 'tests/specs/customerCard.spec.ts'),
+    /import \{ expect, test \} from '\.\.\/fixtures\/apiTest';/
+  );
 });
 
 test('endpoint grubu ve spec hedefi client domaininden ayri secilebilir', () => {

@@ -6,8 +6,8 @@
   "scripts": {
     "test": "playwright test",
     "test:api": "playwright test tests",
-    "test:generator": "node --test tools/api-test-generator/test/*.test.js",
-    "generate:api-test": "node tools/api-test-generator/index.js",
+    "test:generator": "node --import tsx --test tools/api-test-generator/test/generator.test.ts",
+    "generate:api-test": "tsx tools/api-test-generator/index.ts",
     "report": "playwright show-report",
     "typecheck": "tsc --noEmit"
   },
@@ -19,6 +19,7 @@
     "@playwright/test": "^1.49.1",
     "@types/node": "^22.10.2",
     "@types/pg": "^8.11.10",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }
 }

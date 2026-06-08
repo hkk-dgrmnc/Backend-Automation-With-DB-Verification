@@ -1,16 +1,26 @@
-#!/usr/bin/env node
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import readline from 'node:readline';
+import { stdin, stdout } from 'node:process';
+import { parseCurl } from './lib/curlParser';
+import { generateApiTest } from './lib/generator';
+import { domainFromClientName, inferClientMethodName, toCamelCase, toClientName } from './lib/naming';
 
-const fs = require('node:fs');
-const path = require('node:path');
-const readline = require('node:readline');
-const { stdin, stdout } = require('node:process');
-const { parseCurl } = require('./lib/curlParser');
-const { generateApiTest } = require('./lib/generator');
-const { domainFromClientName, inferClientMethodName, toCamelCase, toClientName } = require('./lib/naming');
+interface ParsedArgs {
+  dryRun?: boolean;
+  curl?: string;
+  'curl-file'?: string;
+  client?: string;
+  domain?: string;
+  method?: string;
+  'endpoint-group'?: string;
+  spec?: string;
+  'test-name'?: string;
+  status?: string;
+}
 
-function parseArgs(args) {
-  const options = {};
+function parseArgs(args: string[]): ParsedArgs {
+  const options: ParsedArgs & Record<string, string | boolean | undefined> = {};
 
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
@@ -38,15 +48,20 @@ function parseArgs(args) {
   return options;
 }
 
-function createTerminalReader() {
+interface TerminalReader {
+  close(): void;
+  readLine(prompt: string): Promise<string>;
+}
+
+function createTerminalReader(): TerminalReader {
   const terminal = readline.createInterface({ input: stdin, output: stdout });
   const lines = terminal[Symbol.asyncIterator]();
 
   return {
-    close() {
+    close(): void {
       terminal.close();
     },
-    async readLine(prompt) {
+    async readLine(prompt: string): Promise<string> {
       stdout.write(prompt);
       const result = await lines.next();
 
@@ -54,20 +69,20 @@ function createTerminalReader() {
         throw new Error('Girdi tamamlanmadan terminal kapandi.');
       }
 
-      return result.value;
+      return result.value as string;
     }
   };
 }
 
-async function ask(terminal, question, defaultValue) {
+async function ask(terminal: TerminalReader, question: string, defaultValue?: string): Promise<string | undefined> {
   const defaultText = defaultValue ? ` [${defaultValue}]` : '';
   const answer = (await terminal.readLine(`${question}${defaultText}: `)).trim();
   return answer || defaultValue;
 }
 
-async function readCurl(terminal) {
+async function readCurl(terminal: TerminalReader): Promise<string> {
   stdout.write('cURL komutunu yapistir. Bitirmek icin bos satir gir.\n');
-  const lines = [];
+  const lines: string[] = [];
 
   while (true) {
     const line = await terminal.readLine(lines.length === 0 ? '> ' : '... ');
@@ -80,21 +95,23 @@ async function readCurl(terminal) {
   }
 }
 
-function inferMethodName(parsedCurl) {
+function inferMethodName(parsedCurl: ReturnType<typeof parseCurl>): string {
   return inferClientMethodName(parsedCurl.method, parsedCurl.path);
 }
 
-function inferDomain(parsedCurl) {
+function inferDomain(parsedCurl: ReturnType<typeof parseCurl>): string {
   const pathParts = parsedCurl.path.split('/').filter(Boolean);
-  const candidate = pathParts.length > 1 ? pathParts.at(-2) : pathParts[0];
-  return toCamelCase(candidate ?? 'api');
+  // Skip API route prefix segments like api_musteri, api_kampanya, api
+  const nonApiParts = pathParts.filter((part) => !/^api([_-]|$)/i.test(part));
+  const candidate = nonApiParts.at(0) ?? pathParts.at(-1) ?? 'api';
+  return toCamelCase(candidate);
 }
 
-function inferStatus(method) {
+function inferStatus(method: string): number {
   return method === 'POST' ? 201 : 200;
 }
 
-function readCurlFromArgs(args) {
+function readCurlFromArgs(args: ParsedArgs): string | undefined {
   if (args.curl && args['curl-file']) {
     throw new Error('--curl ve --curl-file ayni anda kullanilamaz.');
   }
@@ -106,22 +123,22 @@ function readCurlFromArgs(args) {
   return args.curl;
 }
 
-async function main() {
+async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const terminal = createTerminalReader();
 
   try {
     const curlText = readCurlFromArgs(args) ?? (await readCurl(terminal));
-    const parsedCurl = parseCurl(curlText);
-    const inferredDomain = inferDomain(parsedCurl);
+    const parsedCurlResult = parseCurl(curlText);
+    const inferredDomain = inferDomain(parsedCurlResult);
     const inferredClientName = toClientName(inferredDomain);
-    const inferredMethodName = inferMethodName(parsedCurl);
+    const inferredMethodName = inferMethodName(parsedCurlResult);
     const clientName = args.client ?? (args.domain ? toClientName(args.domain) : await ask(
       terminal,
       'Client adi (ornek: MusteriKartiClient)',
       inferredClientName
     ));
-    const domain = domainFromClientName(clientName);
+    const domain = domainFromClientName(clientName!);
 
     if (args.domain && args.domain !== domain) {
       throw new Error(`--domain ve --client ayni client'i gostermeli. Beklenen domain: ${domain}`);
@@ -143,16 +160,18 @@ async function main() {
       `${domain}.spec.ts`
     ));
     const testName = args['test-name'] ?? (await ask(terminal, 'Test aciklamasi', `${methodName} returns success`));
-    const expectedStatus = Number(args.status ?? (await ask(terminal, 'Beklenen status code', String(inferStatus(parsedCurl.method)))));
+    const expectedStatus = Number(
+      args.status ?? (await ask(terminal, 'Beklenen status code', String(inferStatus(parsedCurlResult.method))))
+    );
     const changedPaths = generateApiTest({
       rootDir: path.resolve(__dirname, '../..'),
       domain,
-      endpointGroup,
-      specFile,
-      methodName,
-      testName,
+      endpointGroup: endpointGroup!,
+      specFile: specFile!,
+      methodName: methodName!,
+      testName: testName!,
       expectedStatus,
-      parsedCurl,
+      parsedCurl: parsedCurlResult,
       dryRun: args.dryRun
     });
 
@@ -166,10 +185,10 @@ async function main() {
       }
     }
 
-    if (parsedCurl.warnings.length > 0) {
+    if (parsedCurlResult.warnings.length > 0) {
       stdout.write('\nUyarilar:\n');
 
-      for (const warning of parsedCurl.warnings) {
+      for (const warning of parsedCurlResult.warnings) {
         stdout.write(`- ${warning}\n`);
       }
     }
@@ -182,7 +201,7 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+main().catch((error: Error) => {
   console.error(`\nGenerator hatasi: ${error.message}`);
   process.exitCode = 1;
 });

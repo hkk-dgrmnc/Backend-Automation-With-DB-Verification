@@ -1,55 +1,74 @@
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { assertIdentifier, escapeRegExp, escapeTsSingleQuoted, toPascalCase } from './naming';
+import type { ParsedCurl } from './curlParser';
 
-const fs = require('node:fs');
-const path = require('node:path');
-const {
-  assertIdentifier,
-  escapeRegExp,
-  escapeTsSingleQuoted,
-  toPascalCase
-} = require('./naming');
+interface Workspace {
+  exists(relativePath: string): boolean;
+  read(relativePath: string): string;
+  update(relativePath: string, content: string): void;
+  commit(): void;
+  getChangedPaths(): string[];
+}
 
-function createWorkspace(rootDir) {
-  const changes = new Map();
+interface TestData {
+  paramsFunctionName?: string;
+  payloadFunctionName?: string;
+}
 
-  function resolve(relativePath) {
+export interface GenerateApiTestOptions {
+  rootDir: string;
+  domain: string;
+  endpointGroup?: string;
+  specFile?: string;
+  methodName: string;
+  testName: string;
+  expectedStatus: number;
+  parsedCurl: ParsedCurl;
+  dryRun?: boolean;
+}
+
+function createWorkspace(rootDir: string): Workspace {
+  const changes = new Map<string, string>();
+
+  function resolve(relativePath: string): string {
     return path.join(rootDir, relativePath);
   }
 
   return {
-    exists(relativePath) {
+    exists(relativePath: string): boolean {
       return changes.has(relativePath) || fs.existsSync(resolve(relativePath));
     },
-    read(relativePath) {
+    read(relativePath: string): string {
       if (changes.has(relativePath)) {
-        return changes.get(relativePath);
+        return changes.get(relativePath) as string;
       }
 
       return fs.readFileSync(resolve(relativePath), 'utf8');
     },
-    update(relativePath, content) {
+    update(relativePath: string, content: string): void {
       if (this.exists(relativePath) && this.read(relativePath) === content) {
         return;
       }
 
       changes.set(relativePath, content);
     },
-    commit() {
+    commit(): void {
       for (const [relativePath, content] of changes.entries()) {
         const absolutePath = resolve(relativePath);
         fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
         fs.writeFileSync(absolutePath, content);
       }
     },
-    getChangedPaths() {
+    getChangedPaths(): string[] {
       return [...changes.keys()];
     }
   };
 }
 
-function findMatchingBrace(text, openBraceIndex) {
+function findMatchingBrace(text: string, openBraceIndex: number): number {
   let depth = 0;
-  let quote;
+  let quote: string | undefined;
   let escaped = false;
   let lineComment = false;
   let blockComment = false;
@@ -115,9 +134,9 @@ function findMatchingBrace(text, openBraceIndex) {
   throw new Error('TypeScript dosyasinda kapanmamis suslu parantez bulundu.');
 }
 
-function getDepthAt(text, openBraceIndex, targetIndex) {
+function getDepthAt(text: string, openBraceIndex: number, targetIndex: number): number {
   let depth = 0;
-  let quote;
+  let quote: string | undefined;
   let escaped = false;
   let lineComment = false;
   let blockComment = false;
@@ -179,10 +198,20 @@ function getDepthAt(text, openBraceIndex, targetIndex) {
   return depth;
 }
 
-function findTopLevelProperty(text, objectOpenBraceIndex, propertyName, objectValueOnly = false) {
+interface PropertyLocation {
+  openBraceIndex?: number;
+  propertyStartIndex: number;
+}
+
+function findTopLevelProperty(
+  text: string,
+  objectOpenBraceIndex: number,
+  propertyName: string,
+  objectValueOnly = false
+): PropertyLocation | undefined {
   const suffix = objectValueOnly ? '\\s*\\{' : '';
   const propertyPattern = new RegExp(`(^|\\n)[ \\t]*${escapeRegExp(propertyName)}\\s*:${suffix}`, 'g');
-  let match;
+  let match: RegExpExecArray | null;
 
   while ((match = propertyPattern.exec(text)) !== null) {
     const propertyStartIndex = match.index + match[1].length;
@@ -196,7 +225,12 @@ function findTopLevelProperty(text, objectOpenBraceIndex, propertyName, objectVa
   return undefined;
 }
 
-function appendObjectProperty(text, openBraceIndex, propertyText, fallbackClosingIndent) {
+function appendObjectProperty(
+  text: string,
+  openBraceIndex: number,
+  propertyText: string,
+  fallbackClosingIndent: string
+): string {
   const closeBraceIndex = findMatchingBrace(text, openBraceIndex);
   const body = text.slice(openBraceIndex + 1, closeBraceIndex);
   const closingIndentMatch = body.match(/\n([ \t]*)$/);
@@ -212,12 +246,17 @@ function appendObjectProperty(text, openBraceIndex, propertyText, fallbackClosin
   return `${text.slice(0, openBraceIndex + 1)}${content}${text.slice(closeBraceIndex)}`;
 }
 
-function getPropertyLine(text, propertyStartIndex) {
+function getPropertyLine(text: string, propertyStartIndex: number): string {
   const lineEndIndex = text.indexOf('\n', propertyStartIndex);
   return text.slice(propertyStartIndex, lineEndIndex === -1 ? text.length : lineEndIndex).trim();
 }
 
-function updateEndpoints(workspace, endpointGroup, methodName, endpointPath) {
+function updateEndpoints(
+  workspace: Workspace,
+  endpointGroup: string,
+  methodName: string,
+  endpointPath: string
+): void {
   const relativePath = 'src/config/endpoints.ts';
   let content = workspace.read(relativePath);
   const endpointsDeclarationIndex = content.indexOf('export const endpoints');
@@ -237,7 +276,7 @@ function updateEndpoints(workspace, endpointGroup, methodName, endpointPath) {
     return;
   }
 
-  const methodProperty = findTopLevelProperty(content, endpointGroupProperty.openBraceIndex, methodName);
+  const methodProperty = findTopLevelProperty(content, endpointGroupProperty.openBraceIndex!, methodName);
 
   if (methodProperty) {
     const propertyLine = getPropertyLine(content, methodProperty.propertyStartIndex);
@@ -255,21 +294,26 @@ function updateEndpoints(workspace, endpointGroup, methodName, endpointPath) {
 
   content = appendObjectProperty(
     content,
-    endpointGroupProperty.openBraceIndex,
+    endpointGroupProperty.openBraceIndex!,
     `    ${methodName}: '${escapedPath}'`,
     '  '
   );
   workspace.update(relativePath, content);
 }
 
-function formatPropertyName(name) {
+function formatPropertyName(name: string): string {
   return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) ? name : `'${escapeTsSingleQuoted(name)}'`;
 }
 
-function renderClientMethod(domain, endpointGroup, methodName, parsedCurl) {
-  const parameters = [];
-  const requestOptions = [];
-  const headerLines = [];
+function renderClientMethod(
+  domain: string,
+  endpointGroup: string,
+  methodName: string,
+  parsedCurl: ParsedCurl
+): string {
+  const parameters: string[] = [];
+  const requestOptions: string[] = [];
+  const headerLines: string[] = [];
 
   if (Object.keys(parsedCurl.queryParams).length > 0) {
     parameters.push('params: Record<string, string>');
@@ -311,7 +355,7 @@ function renderClientMethod(domain, endpointGroup, methodName, parsedCurl) {
   ].join('\n');
 }
 
-function indent(text, spaces) {
+function indent(text: string, spaces: number): string {
   const prefix = ' '.repeat(spaces);
   return text
     .split('\n')
@@ -319,7 +363,13 @@ function indent(text, spaces) {
     .join('\n');
 }
 
-function updateClient(workspace, domain, endpointGroup, methodName, parsedCurl) {
+function updateClient(
+  workspace: Workspace,
+  domain: string,
+  endpointGroup: string,
+  methodName: string,
+  parsedCurl: ParsedCurl
+): void {
   const relativePath = `src/clients/${domain}Client.ts`;
   const className = `${toPascalCase(domain)}Client`;
   const renderedMethod = indent(renderClientMethod(domain, endpointGroup, methodName, parsedCurl), 2);
@@ -347,7 +397,7 @@ function updateClient(workspace, domain, endpointGroup, methodName, parsedCurl) 
   const methodMatch = content.match(methodPattern);
 
   if (methodMatch) {
-    const methodStartIndex = methodMatch.index;
+    const methodStartIndex = methodMatch.index!;
     const nextMethodIndex = content.indexOf('\n  async ', methodStartIndex + methodMatch[0].length);
     const methodText = content.slice(methodStartIndex, nextMethodIndex === -1 ? content.length : nextMethodIndex);
     const expectedRequestCall = `this.request.${parsedCurl.method.toLowerCase()}(endpoints.${endpointGroup}.${methodName},`;
@@ -375,14 +425,18 @@ function updateClient(workspace, domain, endpointGroup, methodName, parsedCurl) 
   workspace.update(relativePath, content);
 }
 
-function formatValue(value, continuationIndent) {
+function formatValue(value: unknown, continuationIndent: string): string {
   return JSON.stringify(value, null, 2)
     .split('\n')
     .map((line, index) => (index === 0 ? line : `${continuationIndent}${line}`))
     .join('\n');
 }
 
-function renderFactory(functionName, values, returnType) {
+function renderFactory(
+  functionName: string,
+  values: Record<string, unknown>,
+  returnType: string
+): string {
   const lines = Object.entries(values).map(
     ([name, value]) => `    ${JSON.stringify(name)}: ${formatValue(value, '    ')},`
   );
@@ -398,11 +452,16 @@ function renderFactory(functionName, values, returnType) {
   ].join('\n');
 }
 
-function appendModuleBlock(content, block) {
+function appendModuleBlock(content: string, block: string): string {
   return `${content.trimEnd()}\n\n${block}\n`;
 }
 
-function updateDataFile(workspace, relativePath, functionName, functionText) {
+function updateDataFile(
+  workspace: Workspace,
+  relativePath: string,
+  functionName: string,
+  functionText: string
+): void {
   if (!workspace.exists(relativePath)) {
     workspace.update(relativePath, `${functionText}\n`);
     return;
@@ -413,14 +472,16 @@ function updateDataFile(workspace, relativePath, functionName, functionText) {
   const functionMatch = content.match(functionPattern);
 
   if (functionMatch) {
-    const nextFunctionIndex = content.indexOf('\nexport function ', functionMatch.index + functionMatch[0].length);
+    const nextFunctionIndex = content.indexOf('\nexport function ', functionMatch.index! + functionMatch[0].length);
     const existingFunctionText = content.slice(
-      functionMatch.index,
+      functionMatch.index!,
       nextFunctionIndex === -1 ? content.length : nextFunctionIndex
     ).trim();
 
     if (existingFunctionText !== functionText.trim()) {
-      throw new Error(`Test data cakismasi: ${relativePath} icindeki ${functionName} zaten farkli data ile tanimli.`);
+      throw new Error(
+        `Test data cakismasi: ${relativePath} icindeki ${functionName} zaten farkli data ile tanimli.`
+      );
     }
 
     return;
@@ -429,9 +490,9 @@ function updateDataFile(workspace, relativePath, functionName, functionText) {
   workspace.update(relativePath, appendModuleBlock(content, functionText));
 }
 
-function updateTestData(workspace, domain, methodName, parsedCurl) {
+function updateTestData(workspace: Workspace, domain: string, methodName: string, parsedCurl: ParsedCurl): TestData {
   const pascalCaseMethodName = toPascalCase(methodName);
-  const data = {};
+  const data: TestData = {};
 
   if (Object.keys(parsedCurl.queryParams).length > 0) {
     const functionName = methodName.startsWith('get') ? `${methodName}Params` : `get${pascalCaseMethodName}Params`;
@@ -445,7 +506,8 @@ function updateTestData(workspace, domain, methodName, parsedCurl) {
   }
 
   if (parsedCurl.body) {
-    const functionName = methodName.startsWith('create') ? `${methodName}Payload` : `create${pascalCaseMethodName}Payload`;
+    const functionName =
+      methodName.startsWith('create') ? `${methodName}Payload` : `create${pascalCaseMethodName}Payload`;
     updateDataFile(
       workspace,
       `tests/data/${domain}Payloads.ts`,
@@ -458,7 +520,7 @@ function updateTestData(workspace, domain, methodName, parsedCurl) {
   return data;
 }
 
-function ensureNamedImport(content, modulePath, names) {
+function ensureNamedImport(content: string, modulePath: string, names: string[]): string {
   const modulePattern = escapeRegExp(modulePath);
   const importPattern = new RegExp(`import\\s+\\{([^}]*)\\}\\s+from\\s+'${modulePattern}';`);
   const match = content.match(importPattern);
@@ -480,13 +542,15 @@ function ensureNamedImport(content, modulePath, names) {
   }
 
   const lastImport = importMatches[importMatches.length - 1];
-  const insertionIndex = lastImport.index + lastImport[0].length;
+  const insertionIndex = lastImport.index! + lastImport[0].length;
   return `${content.slice(0, insertionIndex)}${importLine}${content.slice(insertionIndex)}`;
 }
 
-function ensureNamespaceImport(content, modulePath, namespace) {
+function ensureNamespaceImport(content: string, modulePath: string, namespace: string): string {
   const modulePattern = escapeRegExp(modulePath);
-  const importPattern = new RegExp(`import\\s+\\*\\s+as\\s+${escapeRegExp(namespace)}\\s+from\\s+'${modulePattern}';`);
+  const importPattern = new RegExp(
+    `import\\s+\\*\\s+as\\s+${escapeRegExp(namespace)}\\s+from\\s+'${modulePattern}';`
+  );
 
   if (importPattern.test(content)) {
     return content;
@@ -500,11 +564,11 @@ function ensureNamespaceImport(content, modulePath, namespace) {
   }
 
   const lastImport = importMatches[importMatches.length - 1];
-  const insertionIndex = lastImport.index + lastImport[0].length;
+  const insertionIndex = lastImport.index! + lastImport[0].length;
   return `${content.slice(0, insertionIndex)}${importLine}${content.slice(insertionIndex)}`;
 }
 
-function ensureApiTestFixtureImport(content) {
+function ensureApiTestFixtureImport(content: string): string {
   const modulePath = '../fixtures/apiTest';
   const modulePattern = escapeRegExp(modulePath);
   const importPattern = new RegExp(`import\\s+\\{[^}]*\\}\\s+from\\s+'${modulePattern}';`);
@@ -516,7 +580,15 @@ function ensureApiTestFixtureImport(content) {
   return ensureNamedImport(content, modulePath, ['expect', 'test']);
 }
 
-function renderTest(domain, endpointGroup, methodName, testName, expectedStatus, parsedCurl, data) {
+function renderTest(
+  domain: string,
+  endpointGroup: string,
+  methodName: string,
+  testName: string,
+  expectedStatus: number,
+  parsedCurl: ParsedCurl,
+  data: TestData
+): string {
   const className = `${toPascalCase(domain)}Client`;
   const variableName = `${domain}Client`;
   const lines = [
@@ -524,7 +596,7 @@ function renderTest(domain, endpointGroup, methodName, testName, expectedStatus,
     `  test('${escapeTsSingleQuoted(testName)}', async ({ apiRequest }) => {`,
     `    const ${variableName} = new ${className}(apiRequest);`
   ];
-  const clientArguments = [];
+  const clientArguments: string[] = [];
 
   if (data.paramsFunctionName) {
     lines.push(`    const params = ${data.paramsFunctionName}();`);
@@ -543,7 +615,7 @@ function renderTest(domain, endpointGroup, methodName, testName, expectedStatus,
 
   lines.push('');
 
-  const logArguments = [`'${parsedCurl.method}'`, `endpoints.${endpointGroup}.${methodName}`];
+  const logArguments: string[] = [`'${parsedCurl.method}'`, `endpoints.${endpointGroup}.${methodName}`];
 
   if (data.payloadFunctionName || parsedCurl.requiresAuth) {
     logArguments.push(data.payloadFunctionName ? 'payload' : 'undefined');
@@ -565,7 +637,17 @@ function renderTest(domain, endpointGroup, methodName, testName, expectedStatus,
   return lines.join('\n');
 }
 
-function updateSpec(workspace, domain, endpointGroup, specFile, methodName, testName, expectedStatus, parsedCurl, data) {
+function updateSpec(
+  workspace: Workspace,
+  domain: string,
+  endpointGroup: string,
+  specFile: string,
+  methodName: string,
+  testName: string,
+  expectedStatus: number,
+  parsedCurl: ParsedCurl,
+  data: TestData
+): void {
   const relativePath = `tests/specs/${specFile}`;
   const className = `${toPascalCase(domain)}Client`;
   const testText = renderTest(domain, endpointGroup, methodName, testName, expectedStatus, parsedCurl, data);
@@ -610,7 +692,9 @@ function updateSpec(workspace, domain, endpointGroup, specFile, methodName, test
 
   if (content.includes(marker)) {
     if (!content.includes(testText)) {
-      throw new Error(`Spec cakismasi: ${relativePath} icinde ${domain}.${methodName} testi zaten farkli icerikle tanimli.`);
+      throw new Error(
+        `Spec cakismasi: ${relativePath} icinde ${domain}.${methodName} testi zaten farkli icerikle tanimli.`
+      );
     }
 
     return;
@@ -645,7 +729,7 @@ function updateSpec(workspace, domain, endpointGroup, specFile, methodName, test
   workspace.update(relativePath, content);
 }
 
-function generateApiTest(options) {
+export function generateApiTest(options: GenerateApiTestOptions): string[] {
   const {
     rootDir,
     domain,
@@ -671,7 +755,10 @@ function generateApiTest(options) {
   }
 
   if (!/^[A-Za-z_$][A-Za-z0-9_$]*\.spec\.ts$/.test(specFile)) {
-    throw new Error(`Spec dosyasi tests/specs altinda gecerli bir .spec.ts dosyasi olmali. Ornek: musteriKarti.spec.ts. Gelen deger: ${specFile}`);
+    throw new Error(
+      `Spec dosyasi tests/specs altinda gecerli bir .spec.ts dosyasi olmali. ` +
+        `Ornek: musteriKarti.spec.ts. Gelen deger: ${specFile}`
+    );
   }
 
   if (methodName.toLowerCase() === `${domain}Client`.toLowerCase()) {
@@ -701,7 +788,3 @@ function generateApiTest(options) {
 
   return workspace.getChangedPaths();
 }
-
-module.exports = {
-  generateApiTest
-};

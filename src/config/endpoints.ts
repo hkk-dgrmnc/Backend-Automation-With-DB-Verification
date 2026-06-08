@@ -15,5 +15,8 @@ export const endpoints = {
   },
   kampanya: {
     addKampanyaKategori: '/api_kampanya/Kampanya/AddKampanyaKategori'
+  },
+  platform: {
+    postPlatform: '/api_musteri/Platform'
   }
 };

@@ -3,6 +3,8 @@ import { env } from './src/config/env';
 
 export default defineConfig({
   testDir: './tests',
+  fullyParallel: true,
+  workers: env.isCi ? 2 : undefined,
   timeout: env.requestTimeoutMs,
   retries: env.isCi ? 1 : 0,
   reporter: [

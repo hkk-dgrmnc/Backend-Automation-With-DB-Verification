@@ -1,17 +1,36 @@
-'use strict';
-
 const supportedMethods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
 const dataOptions = new Set(['-d', '--data', '--data-raw', '--data-binary']);
 const formOptions = new Set(['-F', '--form', '--form-string']);
 const sensitiveHeaderParts = ['authorization', 'cookie', 'secret', 'token', 'api-key', 'apikey', 'password'];
 const safeHeaderNames = new Set(['accept', 'content-type']);
 
-function tokenize(command) {
-  const tokens = [];
-  let currentToken = '';
-  let quote;
+interface OptionResult {
+  consumed: number;
+  name: string;
+  value: string;
+}
 
-  function pushToken() {
+interface Header {
+  name: string;
+  value: string;
+}
+
+export interface ParsedCurl {
+  body: Record<string, unknown> | undefined;
+  method: string;
+  path: string;
+  queryParams: Record<string, string>;
+  requiresAuth: boolean;
+  safeHeaders: Record<string, string>;
+  warnings: string[];
+}
+
+export function tokenize(command: string): string[] {
+  const tokens: string[] = [];
+  let currentToken = '';
+  let quote: string | undefined;
+
+  function pushToken(): void {
     if (currentToken) {
       tokens.push(currentToken);
       currentToken = '';
@@ -64,7 +83,7 @@ function tokenize(command) {
   return tokens;
 }
 
-function readOptionValue(tokens, index, option) {
+function readOptionValue(tokens: string[], index: number, option: string): OptionResult {
   const separatorIndex = option.indexOf('=');
 
   if (separatorIndex !== -1) {
@@ -88,7 +107,7 @@ function readOptionValue(tokens, index, option) {
   };
 }
 
-function parseHeader(headerText) {
+function parseHeader(headerText: string): Header {
   const separatorIndex = headerText.indexOf(':');
 
   if (separatorIndex === -1) {
@@ -101,19 +120,19 @@ function parseHeader(headerText) {
   };
 }
 
-function isSensitiveHeader(name) {
+function isSensitiveHeader(name: string): boolean {
   const normalizedName = name.toLowerCase();
   return sensitiveHeaderParts.some((part) => normalizedName.includes(part));
 }
 
-function findSensitiveDataPaths(value, currentPath) {
+function findSensitiveDataPaths(value: unknown, currentPath: string): string[] {
   if (!value || typeof value !== 'object') {
     return [];
   }
 
-  const sensitivePaths = [];
+  const sensitivePaths: string[] = [];
 
-  for (const [name, nestedValue] of Object.entries(value)) {
+  for (const [name, nestedValue] of Object.entries(value as Record<string, unknown>)) {
     const nestedPath = `${currentPath}.${name}`;
 
     if (isSensitiveHeader(name)) {
@@ -127,13 +146,13 @@ function findSensitiveDataPaths(value, currentPath) {
   return sensitivePaths;
 }
 
-function parseCurl(command) {
+export function parseCurl(command: string): ParsedCurl {
   const tokens = tokenize(command.trim());
-  const headers = [];
-  const dataParts = [];
-  const warnings = [];
-  let method;
-  let urlText;
+  const headers: Header[] = [];
+  const dataParts: string[] = [];
+  const warnings: string[] = [];
+  let method: string | undefined;
+  let urlText: string | undefined;
   let usesFormData = false;
 
   for (let index = 0; index < tokens.length; index += 1) {
@@ -192,19 +211,22 @@ function parseCurl(command) {
   }
 
   const url = new URL(urlText);
-  let body;
+  let body: Record<string, unknown> | undefined;
 
   if (dataParts.length > 0) {
+    let parsed: unknown;
+
     try {
-      body = JSON.parse(dataParts.join(''));
+      parsed = JSON.parse(dataParts.join(''));
     } catch {
       throw new Error('Request body JSON olarak parse edilemedi. Ilk surum yalnizca JSON body destekliyor.');
     }
 
-    if (!body || Array.isArray(body) || typeof body !== 'object') {
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
       throw new Error('Request body plain JSON object olmali.');
     }
 
+    body = parsed as Record<string, unknown>;
     const sensitiveBodyPaths = findSensitiveDataPaths(body, 'body');
 
     if (sensitiveBodyPaths.length > 0) {
@@ -221,7 +243,7 @@ function parseCurl(command) {
     throw new Error(`Desteklenmeyen HTTP metodu: ${method}`);
   }
 
-  const safeHeaders = {};
+  const safeHeaders: Record<string, string> = {};
   let requiresAuth = false;
 
   for (const header of headers) {
@@ -246,7 +268,7 @@ function parseCurl(command) {
     warnings.push(`${header.name} otomatik eklenmedi; gerekiyorsa client icinde manuel olarak degerlendir.`);
   }
 
-  const queryParams = {};
+  const queryParams: Record<string, string> = {};
 
   for (const [name, value] of url.searchParams.entries()) {
     if (isSensitiveHeader(name)) {
@@ -272,8 +294,3 @@ function parseCurl(command) {
     warnings
   };
 }
-
-module.exports = {
-  parseCurl,
-  tokenize
-};
