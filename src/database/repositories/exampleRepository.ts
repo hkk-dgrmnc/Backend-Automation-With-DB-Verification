@@ -5,8 +5,8 @@
 //   - Always use SQL constants from the matching queries file
 //   - Return plain rows or simple objects — no API calls, no assertions here
 
-import { query } from '../dbClient.js';
-import { EXAMPLE_QUERIES } from '../queries/exampleQueries.js';
+import { query } from '../dbClient';
+import { EXAMPLE_QUERIES } from '../queries/exampleQueries';
 
 // Use in GET tests: fetch expected data before calling the API, then compare
 export async function getExampleById(id: number) {

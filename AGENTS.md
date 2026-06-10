@@ -1,52 +1,52 @@
-# API Automation Framework Instructions
+# API Automation Framework Talimatlari
 
-## Project Purpose
+## Proje Amaci
 
-This project is a TypeScript + Playwright Test based API automation framework.
+Bu proje TypeScript + Playwright Test tabanli bir API automation framework'udur.
 
-The framework must be simple, extensible, maintainable, and suitable for different backend projects.
+Framework basit, genisletilebilir, bakimi kolay ve farkli backend projeleri icin uygun olmalidir.
 
-The main purpose is API test automation. Database access is used only when API results need to be verified against persisted data.
+Ana amac API test automation'dir. Database erisimi yalnizca API sonuclarinin kalici (persisted) veriyle dogrulanmasi gerektiginde kullanilir.
 
-This project must avoid unnecessary complexity and must not introduce Java-style POJO, DTO, model class, or response interface structures.
+Bu proje gereksiz karmasiklik icermemeli; Java tarzi POJO, DTO, model class veya response interface yapilari getirmemelidir.
 
-API responses must be handled directly as plain JSON.
+API response'lari dogrudan plain JSON olarak ele alinmalidir.
 
 ---
 
-## Core Technology Decisions
+## Temel Teknoloji Kararlari
 
-Use the following stack:
+Su stack kullanilir:
 
-- Language: TypeScript
+- Dil: TypeScript
 - Test Framework: Playwright Test
 - HTTP Client: Playwright APIRequestContext
-- Assertion Library: Playwright expect
+- Assertion Kutuphanesi: Playwright expect
 - Database: PostgreSQL
 - Database Client: pg
-- ORM: Not allowed
+- ORM: Yasak
 
-Do not use:
+Kullanilmaz:
 
 - Prisma
 - TypeORM
 - Sequelize
 - postman-request
-- callback-based request libraries
-- POJO structures
-- DTO structures
-- response model classes
-- response interfaces for API bodies
+- callback tabanli request kutuphaneleri
+- POJO yapilari
+- DTO yapilari
+- response model class'lari
+- API body'leri icin response interface'leri
 
 ---
 
-## High-Level Architecture
+## Yuksek Seviye Mimari
 
-The project must follow this conceptual structure:
+Proje su kavramsal yapiyi izlemelidir:
 
 - src/clients
-  - Domain-based API clients
-  - Responsible only for sending API requests
+  - Domain bazli API client'lari
+  - Yalnizca API request gondermekten sorumlu
 
 - src/config
   - Environment config
@@ -54,125 +54,125 @@ The project must follow this conceptual structure:
   - Database config
 
 - src/database
-  - Database verification layer
-  - Central database client
-  - Domain-based repositories
-  - SQL query definitions
+  - Database verification katmani
+  - Merkezi database client
+  - Domain bazli repository'ler
+  - SQL query tanimlari
 
 - src/utils
-  - Generic reusable helpers
-  - Generic assertions
-  - Token/auth helpers
-  - Response helpers
+  - Genel, yeniden kullanilabilir helper'lar
+  - Genel assertion'lar
+  - Token/auth helper'lari
+  - Response helper'lari
 
 - tests
-  - Playwright test files
-  - Business assertions
-  - API response checks
-  - Optional API-to-database verification
+  - Playwright test dosyalari
+  - Business assertion'lari
+  - API response kontrolleri
+  - Opsiyonel API-to-database verification
 
-The contents of clients and tests are dynamic. Do not assume fixed modules such as product, basket, order, payment, or campaign. Domain files must be created according to the actual backend project.
-
----
-
-## Response Handling Rules
-
-API responses must be read directly as JSON.
-
-Do not wrap response bodies with:
-
-- classes
-- DTOs
-- POJOs
-- response models
-- response interfaces
-- unnecessary response type aliases
-
-Nested JSON should be handled using normal JavaScript object access. Use readable intermediate variables when the response structure is deep.
-
-The framework should stay simple and avoid over-abstraction.
+clients ve tests icerigi dinamiktir. product, basket, order, payment veya campaign gibi sabit modullerin var olacagini varsayma. Domain dosyalari gercek backend projesine gore olusturulur.
 
 ---
 
-## API Client Layer Rules
+## Response Ele Alma Kurallari
 
-API clients must live under src/clients.
+API response'lari dogrudan JSON olarak okunur.
 
-Each API client must represent one backend domain or logical API area.
+Response body'leri sunlarla sarmalanmaz:
 
-API clients are responsible only for:
+- class'lar
+- DTO'lar
+- POJO'lar
+- response model'leri
+- response interface'leri
+- gereksiz response type alias'lari
 
-- sending HTTP requests
-- using Playwright APIRequestContext
-- using endpoint paths from the centralized endpoint config
-- returning APIResponse objects
+Ic ice (nested) JSON, normal JavaScript object erisimiyle ele alinir. Response yapisi derinse okunabilir ara degiskenler kullan.
 
-API clients must not:
-
-- perform assertions
-- query the database
-- contain business validation logic
-- hardcode full URLs
-- manage raw credentials
-- duplicate token logic
-
-The test layer decides whether a response is valid.
+Framework basit kalmali ve asiri soyutlamadan (over-abstraction) kacinmalidir.
 
 ---
 
-## Endpoint Management Rules
+## API Client Katmani Kurallari
 
-All endpoint paths must be centralized under src/config/endpoints.ts.
+API client'lari src/clients altinda bulunmalidir.
 
-Tests must not contain hardcoded full URLs.
+Her API client tek bir backend domain'ini veya mantiksal API alanini temsil etmelidir.
 
-Dynamic endpoints must be represented in a maintainable way.
+API client'lari yalnizca sunlardan sorumludur:
 
-When a new domain is added, endpoint definitions must be added before creating the client methods.
+- HTTP request gondermek
+- Playwright APIRequestContext kullanmak
+- merkezi endpoint config'inden endpoint path'lerini kullanmak
+- APIResponse objeleri dondurmek
+
+API client'lari sunlari yapmaz:
+
+- assertion yapmak
+- database sorgulamak
+- business validation mantigi icermek
+- full URL hardcode etmek
+- raw credential yonetmek
+- token mantigini tekrar etmek
+
+Bir response'un gecerli olup olmadigina test katmani karar verir.
 
 ---
 
-## Environment Management Rules
+## Endpoint Yonetimi Kurallari
 
-Environment values must be read through config files.
+Tum endpoint path'leri src/config/endpoints.ts altinda merkezilestirilmelidir.
 
-Use dedicated config files for:
+Testler hardcode edilmis full URL icermemelidir.
 
-- application environment values
+Dinamik endpoint'ler bakimi kolay bir sekilde temsil edilmelidir.
+
+Yeni bir domain eklendiginde, client metotlari olusturulmadan once endpoint tanimlari eklenmelidir.
+
+---
+
+## Environment Yonetimi Kurallari
+
+Environment degerleri config dosyalari uzerinden okunmalidir.
+
+Su amaclar icin ayri config dosyalari kullan:
+
+- uygulama environment degerleri
 - base URL
-- database configuration
-- authentication-related configuration
+- database konfigurasyonu
+- authentication ile ilgili konfigurasyon
 
-Tests must not directly read process.env.
+Testler dogrudan process.env okumamalidir.
 
-Real credentials must never be hardcoded.
+Gercek credential'lar asla hardcode edilmemelidir.
 
-.env.example must contain only safe sample values.
+.env.example yalnizca guvenli ornek degerler icermelidir.
 
 ---
 
-## Database Verification Purpose
+## Database Verification Amaci
 
-This project does not write SQL tests.
+Bu proje SQL testleri yazmaz.
 
-The database is not tested directly.
+Database dogrudan test edilmez.
 
-Database access exists only to support API test verification.
+Database erisimi yalnizca API test verification'ini desteklemek icin vardir.
 
-Use the database only for:
+Database'i yalnizca sunlar icin kullan:
 
-- getting expected data and comparing it with API response
-- verifying that POST operations persisted data
-- verifying that PUT/PATCH operations updated data
-- verifying that DELETE operations removed, deactivated, or changed data as expected
+- beklenen veriyi alip API response ile karsilastirmak
+- POST islemlerinin veriyi kalici hale getirdigini dogrulamak
+- PUT/PATCH islemlerinin veriyi guncelledigini dogrulamak
+- DELETE islemlerinin beklendigi gibi veriyi sildigini, pasiflestirdigini veya degistirdigini dogrulamak
 
-Use correct terminology:
+Dogru terminolojiyi kullan:
 
 - database verification
 - database validation
 - API response database verification
 
-Avoid terminology such as:
+Su terminolojiden kacin:
 
 - SQL test
 - DB test
@@ -180,290 +180,290 @@ Avoid terminology such as:
 
 ---
 
-## Database Layer Rules
+## Database Katmani Kurallari
 
-Database files must live under src/database.
+Database dosyalari src/database altinda bulunmalidir.
 
-The database layer must include:
+Database katmani sunlari icermelidir:
 
-- a central database client
-- domain-based repositories
-- SQL query definition files
+- merkezi bir database client
+- domain bazli repository'ler
+- SQL query tanim dosyalari
 
-Database client responsibilities:
+Database client sorumluluklari:
 
-- use pg
-- use connection pooling
-- manage database access centrally
-- expose a reusable query execution function
-- expose a safe way to close the pool when needed
+- pg kullanmak
+- connection pooling kullanmak
+- database erisimini merkezi olarak yonetmek
+- yeniden kullanilabilir bir query calistirma fonksiyonu sunmak
+- gerektiginde pool'u guvenli sekilde kapatmanin bir yolunu sunmak
 
-Query rules:
+Query kurallari:
 
-- SQL statements must be kept outside test files
-- SQL statements must be placed in query definition files
-- tests must never contain raw SQL
+- SQL ifadeleri test dosyalarinin disinda tutulmalidir
+- SQL ifadeleri query tanim dosyalarina konulmalidir
+- testler asla raw SQL icermemelidir
 
-Repository rules:
+Repository kurallari:
 
-- repositories must provide domain-specific database access methods
-- repositories must call the central database client
-- repositories must use SQL from query definition files
-- repositories must return raw database rows or useful plain objects
-- repositories must not perform API requests
-- repositories must not contain Playwright request logic
-- repositories must not perform business assertions
-
----
-
-## Test Layer Rules
-
-Test files must live under tests.
-
-Tests are responsible for business validation.
-
-Tests may call:
-
-- API clients
-- database repositories
-- generic assertion helpers
-- token/auth helpers
-
-Tests must:
-
-- check response status
-- read response body as plain JSON
-- validate important response fields
-- compare API response with database result when needed
-- remain independent from each other
-- be safe for parallel execution where possible
-
-Tests must not:
-
-- create raw database connections
-- write raw SQL
-- hardcode full URLs
-- repeat token or header logic
-- use POJO/DTO/model class structures
-- put assertion logic inside API clients
+- repository'ler domain'e ozgu database erisim metotlari saglamalidir
+- repository'ler merkezi database client'i cagirmalidir
+- repository'ler query tanim dosyalarindaki SQL'i kullanmalidir
+- repository'ler raw database row'lari veya ise yarar plain object'ler dondurmelidir
+- repository'ler API request yapmamalidir
+- repository'ler Playwright request mantigi icermemelidir
+- repository'ler business assertion yapmamalidir
 
 ---
 
-## API and Database Verification Flow
+## Test Katmani Kurallari
 
-For GET-style verification:
+Test dosyalari tests altinda bulunmalidir.
 
-1. Get expected data from the database through a repository when needed.
-2. Call the API through a client.
-3. Check the response status.
-4. Read the response body as plain JSON.
-5. Compare relevant API response fields with database values.
+Testler business validation'dan sorumludur.
 
-For POST-style verification:
+Testler sunlari cagirabilir:
 
-1. Create data through the API.
-2. Check the response status.
-3. Read the response body as plain JSON.
-4. Use the response identifier to query the database through a repository.
-5. Verify the record exists in the database.
-6. Compare relevant API response fields with database values.
+- API client'lari
+- database repository'leri
+- genel assertion helper'lari
+- token/auth helper'lari
 
-For PUT/PATCH-style verification:
+Testler sunlari yapmalidir:
 
-1. Update data through the API.
-2. Check the response status.
-3. Read the response body as plain JSON.
-4. Query the updated record from the database.
-5. Verify updated fields match expected values and the API response.
+- response status'unu kontrol etmek
+- response body'yi plain JSON olarak okumak
+- onemli response alanlarini dogrulamak
+- gerektiginde API response'u database sonucuyla karsilastirmak
+- birbirinden bagimsiz kalmak
+- mumkun oldugunda paralel calistirmaya uygun olmak
 
-For DELETE-style verification:
+Testler sunlari yapmamalidir:
 
-1. Delete or deactivate data through the API.
-2. Check the response status.
-3. Query the database by identifier.
-4. Verify the record is deleted, deactivated, or changed according to backend behavior.
+- raw database connection olusturmak
+- raw SQL yazmak
+- full URL hardcode etmek
+- token veya header mantigini tekrar etmek
+- POJO/DTO/model class yapilari kullanmak
+- assertion mantigini API client'larin icine koymak
 
 ---
 
-## Authentication and Token Rules
+## API ve Database Verification Akisi
 
-Authentication logic must not be repeated across tests.
+GET tarzi verification icin:
 
-Token management should be centralized under src/utils/tokenManager.ts or an equivalent utility.
+1. Gerektiginde beklenen veriyi bir repository uzerinden database'den al.
+2. API'yi bir client uzerinden cagir.
+3. Response status'unu kontrol et.
+4. Response body'yi plain JSON olarak oku.
+5. Ilgili API response alanlarini database degerleriyle karsilastir.
 
-Token helper responsibilities may include:
+POST tarzi verification icin:
 
-- requesting tokens
-- caching tokens
-- refreshing tokens if needed
-- returning reusable authorization headers
+1. API uzerinden veri olustur.
+2. Response status'unu kontrol et.
+3. Response body'yi plain JSON olarak oku.
+4. Response identifier'ini kullanarak bir repository uzerinden database'i sorgula.
+5. Kaydin database'de var oldugunu dogrula.
+6. Ilgili API response alanlarini database degerleriyle karsilastir.
 
-Tests should call token helpers instead of manually building headers repeatedly.
+PUT/PATCH tarzi verification icin:
 
----
+1. API uzerinden veriyi guncelle.
+2. Response status'unu kontrol et.
+3. Response body'yi plain JSON olarak oku.
+4. Guncellenen kaydi database'den sorgula.
+5. Guncellenen alanlarin beklenen degerlerle ve API response ile eslestigini dogrula.
 
-## Utility Rules
+DELETE tarzi verification icin:
 
-Generic helpers must live under src/utils.
-
-Useful helper areas include:
-
-- generic assertions
-- response helpers
-- token management
-- data formatting helpers
-
-Generic assertion helpers must stay generic.
-
-Domain-specific assertion helpers may be added only when they improve readability, but they must not introduce POJO, DTO, or model structures.
-
----
-
-## Playwright Configuration Rules
-
-playwright.config.ts must keep API test setup simple.
-
-It should define:
-
-- tests directory
-- base URL configuration
-- useful reporters
-- retry strategy if needed
-- default API headers when appropriate
-
-The config should not become a place for business logic.
+1. API uzerinden veriyi sil veya pasiflestir.
+2. Response status'unu kontrol et.
+3. Database'i identifier ile sorgula.
+4. Kaydin backend davranisina gore silindigini, pasiflestirildigini veya degistirildigini dogrula.
 
 ---
 
-## Package Script Rules
+## Authentication ve Token Kurallari
 
-package.json should include useful scripts for:
+Authentication mantigi testler arasinda tekrar edilmemelidir.
 
-- running all tests
-- running API tests
-- opening the report
+Token yonetimi src/utils/tokenManager.ts veya esdeger bir utility altinda merkezilestirilmelidir.
 
-Additional scripts may be added when they improve daily usage or CI integration.
+Token helper sorumluluklari sunlari icerebilir:
+
+- token istemek
+- token cache'lemek
+- gerektiginde token yenilemek
+- yeniden kullanilabilir authorization header'lari dondurmek
+
+Testler header'i tekrar tekrar elle olusturmak yerine token helper'larini cagirmalidir.
 
 ---
 
-## Coding Standards
+## Utility Kurallari
 
-Use:
+Genel helper'lar src/utils altinda bulunmalidir.
+
+Ise yarar helper alanlari sunlari icerir:
+
+- genel assertion'lar
+- response helper'lari
+- token yonetimi
+- veri formatlama helper'lari
+
+Genel assertion helper'lari genel kalmalidir.
+
+Domain'e ozgu assertion helper'lari yalnizca okunabilirligi artirdiklarinda eklenebilir; ancak POJO, DTO veya model yapilari getirmemelidir.
+
+---
+
+## Playwright Konfigurasyon Kurallari
+
+playwright.config.ts API test kurulumunu basit tutmalidir.
+
+Su tanimlari icermelidir:
+
+- tests dizini
+- base URL konfigurasyonu
+- ise yarar reporter'lar
+- gerekiyorsa retry stratejisi
+- uygun oldugunda varsayilan API header'lari
+
+Config, business mantiginin yeri haline gelmemelidir.
+
+---
+
+## Package Script Kurallari
+
+package.json su amaclar icin ise yarar script'ler icermelidir:
+
+- tum testleri calistirmak
+- API testlerini calistirmak
+- raporu acmak
+
+Gunluk kullanimi veya CI entegrasyonunu iyilestirdiginde ek script'ler eklenebilir.
+
+---
+
+## Kodlama Standartlari
+
+Kullan:
 
 - TypeScript
 - async/await
 - Playwright expect
 - Playwright APIRequestContext
 - pg Pool
-- repository pattern for database verification
-- centralized endpoint management
-- centralized environment config
+- database verification icin repository pattern
+- merkezi endpoint yonetimi
+- merkezi environment config
 
-Avoid:
+Kacin:
 
-- callback-based request code
-- hardcoded credentials
-- hardcoded full URLs in tests
-- raw SQL in tests
-- database connections in tests
-- assertions inside API clients
-- API calls inside database repositories
-- database queries inside API clients
-- unnecessary abstraction
-- POJO, DTO, model, or response interface structures
-
----
-
-## Responsibility Separation
-
-API client responsibilities:
-
-- send API requests
-- return API responses
-
-API clients must not:
-
-- assert
-- query database
-- validate business behavior
-
-Database repository responsibilities:
-
-- execute database queries
-- return database records
-
-Database repositories must not:
-
-- call APIs
-- use Playwright request
-- perform business assertions
-
-Test file responsibilities:
-
-- call API clients
-- call repositories when needed
-- check status code
-- read JSON response body
-- compare API response with database result
-- perform business assertions
+- callback tabanli request kodu
+- hardcode credential
+- testlerde hardcode full URL
+- testlerde raw SQL
+- testlerde database connection
+- API client'larin icinde assertion
+- database repository'lerin icinde API cagrisi
+- API client'larin icinde database query
+- gereksiz soyutlama (abstraction)
+- POJO, DTO, model veya response interface yapilari
 
 ---
 
-## Adding a New Domain
+## Sorumluluk Ayrimi
 
-When adding a new domain:
+API client sorumluluklari:
 
-1. Add endpoint definitions.
-2. Create the domain API client.
-3. Add database query definitions only if database verification is needed.
-4. Add repository methods only if database verification is needed.
-5. Create the related test file or business-flow test file.
+- API request gondermek
+- API response dondurmek
 
-Do not assume every domain needs database verification.
+API client'lari sunlari yapmaz:
 
-Use database verification only when it adds real value to the API test.
+- assertion
+- database sorgulama
+- business davranis dogrulama
 
----
+Database repository sorumluluklari:
 
-## Test Design Guidance
+- database query calistirmak
+- database kayitlari dondurmek
 
-Not every API test needs database verification.
+Database repository'leri sunlari yapmaz:
 
-Use API-only tests for:
+- API cagirmak
+- Playwright request kullanmak
+- business assertion yapmak
 
-- basic status checks
-- simple response validation
-- public lookup endpoints
-- list endpoints
-- lightweight smoke tests
+Test dosyasi sorumluluklari:
 
-Use API plus database verification for:
-
-- critical business flows
-- create operations
-- update operations
-- delete/deactivation operations
-- payment, order, basket, user, or state-changing flows
-- cases where response validation alone is not enough
+- API client'lari cagirmak
+- gerektiginde repository cagirmak
+- status code kontrol etmek
+- JSON response body okumak
+- API response'u database sonucuyla karsilastirmak
+- business assertion yapmak
 
 ---
 
-## Final Checklist Before Completing Any Task
+## Yeni Domain Ekleme
 
-Before finishing any change, verify:
+Yeni bir domain eklerken:
 
-- no POJO, DTO, or model class was added
-- no response interface was added for API bodies
-- no unnecessary response type alias was added
-- no raw SQL exists in test files
-- no database connection exists in test files
-- no assertion exists inside API clients
-- no API request exists inside database repositories
-- no database query exists inside API clients
-- no hardcoded full URL exists in tests
-- no credential is hardcoded
-- response body is read as plain JSON
-- clients return APIResponse
-- tests perform business assertions
-- database is used only for API result verification
+1. Endpoint tanimlarini ekle.
+2. Domain API client'ini olustur.
+3. Database verification gerekiyorsa yalnizca o zaman database query tanimlari ekle.
+4. Database verification gerekiyorsa yalnizca o zaman repository metotlari ekle.
+5. Ilgili test dosyasini veya business-flow test dosyasini olustur.
+
+Her domain'in database verification'a ihtiyaci oldugunu varsayma.
+
+Database verification'i yalnizca API testine gercek deger katiyorsa kullan.
+
+---
+
+## Test Tasarim Rehberi
+
+Her API testinin database verification'a ihtiyaci yoktur.
+
+Su durumlar icin API-only testler kullan:
+
+- temel status kontrolleri
+- basit response dogrulama
+- public lookup endpoint'leri
+- list endpoint'leri
+- hafif smoke testleri
+
+Su durumlar icin API arti database verification kullan:
+
+- kritik business akislari
+- create islemleri
+- update islemleri
+- delete/pasiflestirme islemleri
+- payment, order, basket, user veya state degistiren akislar
+- response dogrulamanin tek basina yeterli olmadigi durumlar
+
+---
+
+## Herhangi Bir Gorevi Tamamlamadan Once Son Kontrol Listesi
+
+Herhangi bir degisikligi bitirmeden once sunlari dogrula:
+
+- POJO, DTO veya model class eklenmedi
+- API body'leri icin response interface eklenmedi
+- gereksiz response type alias eklenmedi
+- test dosyalarinda raw SQL yok
+- test dosyalarinda database connection yok
+- API client'larin icinde assertion yok
+- database repository'lerin icinde API request yok
+- API client'larin icinde database query yok
+- testlerde hardcode full URL yok
+- hicbir credential hardcode edilmedi
+- response body plain JSON olarak okunuyor
+- client'lar APIResponse donduruyor
+- testler business assertion yapiyor
+- database yalnizca API sonucu verification'i icin kullaniliyor

@@ -1,4 +1,3 @@
-import { AsyncLocalStorage } from 'async_hooks';
 import { relative } from 'path';
 import type { APIResponse, TestInfo } from '@playwright/test';
 import { env } from '../config/env';
@@ -31,7 +30,6 @@ type LogContext = {
   workerIndex: number;
 };
 
-const logContextStorage = new AsyncLocalStorage<LogContext>();
 let activeLogContext: LogContext | undefined;
 
 function getLogLevelValue(level: string) {
@@ -108,7 +106,7 @@ function buildLogContext(testInfo: TestInfo): LogContext {
 }
 
 function getContextPrefix() {
-  const context = logContextStorage.getStore() ?? activeLogContext;
+  const context = activeLogContext;
 
   if (!context) {
     return '';
@@ -143,21 +141,6 @@ function writeLog(level: keyof typeof logLevels, title: string, value?: unknown)
   }
 
   console.log(`${prefix} ${title}\n${formatValue(value)}`);
-}
-
-/**
- * Bir testin içindeki loglara otomatik test bilgisi ekler.
- *
- * Kullanım:
- * await withTestLogContext(testInfo, async () => {
- *   logApiRequest('GET', '/products/1');
- * });
- *
- * Log çıktısında test adı, dosya, worker ve retry bilgisi görünür.
- * Parallel testlerde logların hangi teste ait olduğunu ayırmak için kullanılır.
- */
-export async function withTestLogContext<T>(testInfo: TestInfo, action: () => Promise<T>): Promise<T> {
-  return logContextStorage.run(buildLogContext(testInfo), action);
 }
 
 /**
