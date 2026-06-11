@@ -105,6 +105,7 @@ API client'lari yalnizca sunlardan sorumludur:
 - HTTP request gondermek
 - Playwright APIRequestContext kullanmak
 - merkezi endpoint config'inden endpoint path'lerini kullanmak
+- query parametrelerini Playwright params secenegine vermek (endpoint string'ine query eklemez)
 - APIResponse objeleri dondurmek
 
 API client'lari sunlari yapmaz:
@@ -126,7 +127,9 @@ Tum endpoint path'leri src/config/endpoints.ts altinda merkezilestirilmelidir.
 
 Testler hardcode edilmis full URL icermemelidir.
 
-Dinamik endpoint'ler bakimi kolay bir sekilde temsil edilmelidir.
+Endpoint girisleri duz path string olmalidir. Endpoint icinde query string kurulmaz; URLSearchParams veya path birlestiren fonksiyon yazilmaz. Query parametresi olan ve olmayan tum endpoint'ler ayni sekilde duz string tutulur.
+
+Query parametreleri endpoint config'inde degil test data katmaninda (tests/data/<domain>Params.ts) yasar. Query key'leri gercek API casing'iyle yazilir (ornek: PageSize, Page, id) ve Record<string, string> olarak tutulur. Client request gonderirken query'yi Playwright'in params secenegine verir: request.get(endpoints.grup.metot, { headers, params }).
 
 Yeni bir domain eklendiginde, client metotlari olusturulmadan once endpoint tanimlari eklenmelidir.
 
@@ -365,6 +368,7 @@ Kacin:
 - callback tabanli request kodu
 - hardcode credential
 - testlerde hardcode full URL
+- endpoint config'inde query string kuran fonksiyon (endpoint duz string olmali)
 - testlerde raw SQL
 - testlerde database connection
 - API client'larin icinde assertion
@@ -426,6 +430,40 @@ Database verification'i yalnizca API testine gercek deger katiyorsa kullan.
 
 ---
 
+## Swagger veya cURL'den Test Uretme
+
+Girdi olarak Swagger (OpenAPI) linki veya cURL komutu verilebilir. Her iki durumda da uretilen kod bu dokumandaki yapiya uymalidir.
+
+cURL icin yerel generator kullanilabilir:
+
+```bash
+npm run generate:api-test
+```
+
+Generator endpoint, client, gerekli test data ve yalnizca basarili status assertion'i iceren spec'i bu kurallara uygun uretir. Internete veya yapay zeka servisine baglanmaz.
+
+Swagger icin ayni yapi elle olusturulur. Dosya sirasi "Yeni Domain Ekleme" ile aynidir: once endpoint, sonra client, sonra test data, sonra spec.
+
+Uretim sirasi:
+
+1. Once basit API testleri uretilir: status kontrolu ve hafif response alan kontrolu. Bu asamada database'e dokunulmaz.
+2. Database verification yalnizca gerektiginde ve ayri bir adimda eklenir (bkz. Test Tasarim Rehberi).
+
+Test data kaynaklari:
+
+Bir request alani su kaynaklardan beslenebilir:
+
+- sabit deger
+- uretilen random deger (src/utils/testDataGenerator)
+- database'den alinan deger
+- baska bir API isteginden alinan deger
+
+Dordu de ayni yerden girer: data factory'nin overrides parametresi. Boylece testin iskeleti degismeden alanin kaynagi degisir. Database'den veya baska bir istekten gelen deger test (veya fixture) icinde alinir; testler birbirinden bagimsiz kalir. Hangi alanin hangi kaynaktan gelecegi belirsizse, kod yazan kisiye sorulur.
+
+Response semasi bilinmiyorsa assertion temkinli tutulur (status ve body tipi). Gercek response gorulunce alan bazli assertion eklenir.
+
+---
+
 ## Test Tasarim Rehberi
 
 Her API testinin database verification'a ihtiyaci yoktur.
@@ -462,6 +500,7 @@ Herhangi bir degisikligi bitirmeden once sunlari dogrula:
 - database repository'lerin icinde API request yok
 - API client'larin icinde database query yok
 - testlerde hardcode full URL yok
+- endpoint girisleri duz string; query Playwright params secenegiyle veriliyor
 - hicbir credential hardcode edilmedi
 - response body plain JSON olarak okunuyor
 - client'lar APIResponse donduruyor

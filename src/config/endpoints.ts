@@ -3,14 +3,7 @@ export const endpoints = {
     login: '/api_yonetim/api/Auth/Login'
   },
   musteriKarti: {
-    getAllWithPaging: (params: Record<string, number | string>) => {
-      const queryParams = new URLSearchParams({
-        PageSize: String(params.pageSize),
-        Page: String(params.page)
-      });
-
-      return `/api_musteri/MusteriKarti/GetAllMusteriKartiWithPaging?${queryParams.toString()}`;
-    },
+    getAllWithPaging: '/api_musteri/MusteriKarti/GetAllMusteriKartiWithPaging',
     getAllMusteriKartiNames: '/api_musteri/MusteriKarti/GetAllMusteriKartiNames'
   },
   kampanya: {
@@ -18,5 +11,8 @@ export const endpoints = {
   },
   platform: {
     postPlatform: '/api_musteri/Platform'
+  },
+  sozlesme: {
+    getByIdWithAllRelations: '/api_sozlesme/Sozlesme/GetByIdWithAllRelations'
   }
 };

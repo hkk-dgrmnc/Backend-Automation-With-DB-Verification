@@ -5,14 +5,15 @@ export class MusteriKartiClient {
   constructor(private readonly request: APIRequestContext) {}
 
   async getAllWithPaging(
-    pagingParams: Record<string, number | string>,
+    pagingParams: Record<string, string>,
     headers: Record<string, string>
   ): Promise<APIResponse> {
-    return this.request.get(endpoints.musteriKarti.getAllWithPaging(pagingParams), {
+    return this.request.get(endpoints.musteriKarti.getAllWithPaging, {
       headers: {
         Accept: 'application/json',
         ...headers
-      }
+      },
+      params: pagingParams
     });
   }
 

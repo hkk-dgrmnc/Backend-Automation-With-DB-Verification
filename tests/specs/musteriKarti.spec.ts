@@ -16,7 +16,7 @@ test.describe('Musteri Karti API', () => {
     const pagingParams = getAllMusteriKartiPagingParams();
     const authHeaders = await getAuthorizationHeaders(apiRequest);
 
-    logger.logApiRequest('GET', endpoints.musteriKarti.getAllWithPaging(pagingParams), undefined, authHeaders);
+    logger.logApiRequest('GET', endpoints.musteriKarti.getAllWithPaging, undefined, authHeaders);
 
     const response = await musteriKartiClient.getAllWithPaging(pagingParams, authHeaders);
 

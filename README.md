@@ -73,7 +73,7 @@ Dogru kullanim:
 
 ```ts
 endpoints.auth.login;
-endpoints.musteriKarti.getAllWithPaging(params);
+endpoints.musteriKarti.getAllWithPaging;
 ```
 
 Base URL `.env` uzerinden gelir:

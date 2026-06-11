@@ -10,11 +10,11 @@
  * ?PageSize=10&Page=1
  */
 export function getAllMusteriKartiPagingParams(
-  overrides: Record<string, number | string> = {}
-): Record<string, number | string> {
+  overrides: Record<string, string> = {}
+): Record<string, string> {
   return {
-    pageSize: 10,
-    page: 1,
+    PageSize: '10',
+    Page: '1',
     ...overrides
   };
 }
