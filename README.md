@@ -1,10 +1,41 @@
-# Backend Automation With Database Verification
+# MYS Backend API Automation Framework
 
-TypeScript + Playwright Test tabanli API automation projesidir.
+Bu repo, MYS backend servisleri icin hazirlanmis TypeScript + Playwright Test
+tabanli API automation framework'udur. Amac, API endpoint'lerini tekrar
+calistirilabilir testlerle dogrulamak ve gerekli durumlarda API sonucunu
+PostgreSQL uzerindeki kalici veriyle karsilastirmaktir.
 
-Bu repo tek backend projesi icin ilerler. Eski `example` domain dosyalari ve gereksiz ic ice klasorler kaldirilmistir.
+Framework API test automation odaklidir. Database dogrudan test edilmez;
+yalnizca API isleminin beklenen veriyi urettigini, guncelledigini veya
+korudugunu dogrulamak icin verification katmani olarak kullanilir.
 
-## Temel Komutlar
+## Kapsam
+
+Mevcut test alanlari:
+
+- Auth
+- Musteri Karti
+- Kampanya
+- Platform
+- Sozlesme
+
+Her domain icin hedef yapi aynidir: endpoint tanimi, domain client'i, test data
+factory'leri ve Playwright spec dosyalari birbirinden ayrilir.
+
+## Teknoloji Stack'i
+
+- Dil: TypeScript
+- Test framework: Playwright Test
+- HTTP client: Playwright `APIRequestContext`
+- Assertion: Playwright `expect`
+- Database client: `pg`
+- Environment yonetimi: `dotenv`
+
+ORM, DTO, POJO, response model class'i veya gereksiz response interface'i
+kullanilmaz. API response'lari plain JSON olarak okunur ve assertion test
+katmaninda yapilir.
+
+## Hizli Baslangic
 
 ```bash
 npm install
@@ -12,62 +43,78 @@ npm run typecheck
 npm test
 ```
 
-Yeni bir API icin endpoint, client, test data ve basarili status testi taslagi
-olusturmak icin yerel generator kullanilabilir:
+Gercek API testleri varsayilan olarak kapali gelir. Bu sayede local veya CI
+ortaminda yanlislikla gercek ortama istek atilmaz.
 
-```bash
-npm run generate:api-test
-```
-
-Generator internete veya yapay zeka servisine baglanmaz. Detayli kullanim ve
-desteklenen cURL kapsami icin:
-
-```txt
-tools/api-test-generator/README.md
-```
-
-Gercek API testleri varsayilan olarak kapali gelir:
+`.env.example` dosyasini `.env` olarak kopyalayip gerekli degerleri doldurun:
 
 ```env
 TESTS_ENABLED=false
-```
-
-Gercek API'ye istek atmak icin `.env` dosyasinda bunu acmak gerekir:
-
-```env
-TESTS_ENABLED=true
 BASE_URL=https://dev-mys.ptt.gov.tr
 AUTH_USERNAME=
 AUTH_PASSWORD=
 ```
 
+Gercek API testlerini calistirmak icin:
+
+```env
+TESTS_ENABLED=true
+```
+
+## Komutlar
+
+```bash
+npm test
+```
+
+Tum Playwright testlerini calistirir. `TESTS_ENABLED=false` iken gercek API
+spec'leri skip edilir, unit testler calismaya devam eder.
+
+```bash
+npm run test:api
+```
+
+`tests` altindaki Playwright testlerini calistirir.
+
+```bash
+npm run typecheck
+```
+
+TypeScript tip kontrolu yapar.
+
+```bash
+npm run test:generator
+```
+
+Yerel API test generator unit testlerini calistirir.
+
+```bash
+npm run report
+```
+
+Playwright HTML raporunu acar.
+
 ## Proje Yapisi
 
-Tek proje kullanildigi icin domain bazli gereksiz ic ice klasorler acilmaz.
-Spec dosyalari test kodunu duzenli tutmak icin `tests/specs` altinda tutulur:
-
 ```txt
-src/clients/
+src/
+  clients/        Domain bazli API client'lari
+  config/         Env, endpoint ve database config dosyalari
+  database/       Database verification altyapisi
+  utils/          Assertion, token, logger ve response helper'lari
 tests/
-tests/specs/
-tests/data/
-tests/fixtures/
+  data/           Payload ve query param factory'leri
+  fixtures/       Ortak Playwright fixture'lari
+  specs/          API test senaryolari
+  unit/           Helper ve utility unit testleri
+tools/
+  api-test-generator/
 ```
 
-Yeni domain eklerken ayni pattern korunur:
+## Mimari Kurallar
 
-```txt
-src/clients/<domain>Client.ts
-tests/specs/<domain>.spec.ts
-tests/data/<domain>Payloads.ts
-tests/data/<domain>Params.ts
-```
-
-## Endpoint Kurali
-
-Endpoint path'leri sadece `src/config/endpoints.ts` icinde tutulur.
-
-Test veya client dosyalarinda full URL yazilmaz.
+Endpoint path'leri sadece `src/config/endpoints.ts` icinde tutulur. Test veya
+client dosyalarinda full URL yazilmaz.
 
 Dogru kullanim:
 
@@ -82,97 +129,57 @@ Base URL `.env` uzerinden gelir:
 BASE_URL=https://dev-mys.ptt.gov.tr
 ```
 
-## Client Kurali
+Client dosyalari yalnizca API request atar ve `APIResponse` dondurur. Client
+icinde assertion, database query, business validation, payload uretimi veya raw
+credential bulunmaz.
 
-Client dosyalari sadece request atar ve `APIResponse` dondurur.
-
-Client icinde sunlar bulunmaz:
-
-- assertion
-- business validation
-- database query
-- payload uretimi
-- raw credential
-
-## Test Data Kurali
-
-Request body gerekiyorsa:
+Test data dosyalari sadece request body veya query param objesi uretir:
 
 ```txt
 tests/data/<domain>Payloads.ts
-```
-
-Query param gerekiyorsa:
-
-```txt
 tests/data/<domain>Params.ts
 ```
 
-Test data dosyalari sadece plain JSON body veya query param objesi uretir.
+Spec dosyalari business akisindan sorumludur:
 
-Bu dosyalarda API cagrisi, database baglantisi veya assertion bulunmaz.
+1. Payload veya query params hazirlanir.
+2. Gerekiyorsa authorization header alinir.
+3. Domain client'i ile API cagrisi yapilir.
+4. Response status kontrol edilir.
+5. Response body plain JSON olarak okunur.
+6. Gerekli alanlar veya database verification sonucu assert edilir.
 
-## Test Kurali
+## Token Yonetimi
 
-Spec dosyalari business akisini yonetir:
+Token islemleri `src/utils/tokenManager.ts` icinde merkezilestirilir.
 
-1. payload veya query params hazirlanir
-2. gerekiyorsa token/header alinir
-3. client ile API cagrisi yapilir
-4. response status kontrol edilir
-5. response body plain JSON olarak okunur
-6. gerekli alanlar assert edilir
-
-Generic API assertion helper'lari namespace import ile kullanilir:
-
-```ts
-import * as apiAssert from '../../src/utils/assertions';
-import { expect, test } from '../fixtures/apiTest';
-
-apiAssert.expectStatus(response, 200);
-expect(response.status()).toBe(200);
-```
-
-Test data generator helper'lari namespace import ile kullanilir:
-
-```ts
-import * as testDataGenerator from '../../src/utils/testDataGenerator';
-
-testDataGenerator.generateTestString('Otomasyon Kampanya', 4, 6);
-```
-
-## Token Kullanimi
-
-Token yonetimi:
-
-```txt
-src/utils/tokenManager.ts
-```
-
-Login testi token'i response icinden cikarip cache'e koyabilir.
-
-Diger testler token header almak icin sunu kullanir:
+Login testi token'i response icinden cikarip cache'e koyabilir. Diger testler
+authorization header almak icin su helper'i kullanir:
 
 ```ts
 getAuthorizationHeaders(apiRequest);
 ```
 
-Token JWT formatindaysa cache suresi `exp` alanindan okunur. JWT olmayan token'lar
+Token JWT formatindaysa cache suresi `exp` alanindan okunur. JWT olmayan token
 icin `.env` icindeki `AUTH_TOKEN_CACHE_TTL_MS` kullanilir. Token bitimine
 `AUTH_TOKEN_EXPIRY_SKEW_MS` kadar sure kaldiginda yeni token alinir.
 
 ## Database Verification
 
-Database core altyapisi korunur:
+Database katmani su dosyalarla baslar:
 
 ```txt
 src/config/dbConfig.ts
 src/database/dbClient.ts
+src/database/queries/
+src/database/repositories/
 ```
 
-Bu proje database'i test etmez. Database sadece API sonucu veya API isleminin persistence durumunu dogrulamak icin kullanilir.
+Database sadece API sonucunu desteklemek icin kullanilir. Test dosyasinda raw
+SQL yazilmaz ve test icinde database connection olusturulmaz.
 
-Gercek database verification eklenecegi zaman dosyalar domain bazli acilir:
+Yeni bir domain icin database verification gerekiyorsa yapi su sekilde
+genisletilir:
 
 ```txt
 src/database/queries/<domain>Queries.ts
@@ -180,21 +187,14 @@ src/database/repositories/<domain>Repository.ts
 tests/specs/<domain>DatabaseVerification.spec.ts
 ```
 
-Kurallar:
-
-- Test dosyasinda raw SQL yazilmaz.
-- Test dosyasinda database connection olusturulmaz.
-- SQL sadece `src/database/queries` altinda olur.
-- Repository sadece database query calistirir.
-- Repository API cagrisi yapmaz.
-- API client database query calistirmaz.
-
 ## Logging
 
 Loglar varsayilan olarak kapali gelir:
 
 ```env
 LOG_LEVEL=silent
+LOG_PAYLOADS=false
+LOG_DB_QUERIES=false
 ```
 
 Debug log icin:
@@ -203,18 +203,51 @@ Debug log icin:
 LOG_LEVEL=debug LOG_PAYLOADS=false npm test
 ```
 
-Body ve database row iceriklerini de gormek icin:
+Request/response body veya database row iceriklerini de gormek icin:
 
 ```bash
 LOG_LEVEL=debug LOG_PAYLOADS=true LOG_DB_QUERIES=true npm test
 ```
 
-Hassas alanlar logger tarafindan maskelenir.
+Logger hassas alanlari maskeleyerek yazar.
 
-Logger helper'lari namespace import ile kullanilir:
+## API Test Generator
 
-```ts
-import * as logger from '../../src/utils/logger';
+cURL komutundan framework'e uygun baslangic testi uretmek icin yerel generator
+kullanilabilir:
 
-logger.logApiRequest('GET', endpoints.musteriKarti.getAllMusteriKartiNames);
+```bash
+npm run generate:api-test
+```
+
+Generator internete, yapay zeka servisine veya API key'e baglanmaz. Endpoint,
+client metodu, gerekli test data dosyalari ve basarili status assertion'i iceren
+spec taslagini olusturur.
+
+Detayli kullanim:
+
+```txt
+tools/api-test-generator/README.md
+```
+
+## Yeni Domain Ekleme Akisi
+
+1. `src/config/endpoints.ts` icine endpoint path'lerini ekle.
+2. `src/clients/<domain>Client.ts` dosyasini olustur veya guncelle.
+3. Query param gerekiyorsa `tests/data/<domain>Params.ts` ekle.
+4. Request body gerekiyorsa `tests/data/<domain>Payloads.ts` ekle.
+5. `tests/specs/<domain>.spec.ts` icinde API testini yaz.
+6. Database verification gerekiyorsa query ve repository katmanini ayrica ekle.
+
+Her domain'in database verification'a ihtiyaci oldugu varsayilmaz. Once API-only
+test yazilir, database verification sadece business olarak anlamli oldugunda
+eklenir.
+
+## Confluence Dokumani
+
+Confluence'a proje aciklamasi olarak README'nin birebir kopyasi yerine daha
+ozet ve ekip odakli taslak kullanilabilir:
+
+```txt
+docs/confluence-project-overview.md
 ```
