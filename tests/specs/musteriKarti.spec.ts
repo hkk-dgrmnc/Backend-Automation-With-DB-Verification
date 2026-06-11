@@ -13,12 +13,12 @@ test.describe('Musteri Karti API', () => {
 
   test('gets customer cards with paging successfully', async ({ apiRequest }) => {
     const musteriKartiClient = new MusteriKartiClient(apiRequest);
-    const pagingParams = getAllMusteriKartiPagingParams();
+    const params = getAllMusteriKartiPagingParams();
     const authHeaders = await getAuthorizationHeaders(apiRequest);
 
     logger.logApiRequest('GET', endpoints.musteriKarti.getAllWithPaging, undefined, authHeaders);
 
-    const response = await musteriKartiClient.getAllWithPaging(pagingParams, authHeaders);
+    const response = await musteriKartiClient.getAllWithPaging(params, authHeaders);
 
     apiAssert.expectStatus(response, 200);
 

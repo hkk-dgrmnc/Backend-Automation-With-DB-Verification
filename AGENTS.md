@@ -119,6 +119,14 @@ API client'lari sunlari yapmaz:
 
 Bir response'un gecerli olup olmadigina test katmani karar verir.
 
+Client metot imzasi standardi:
+
+- Parametre sirasi: once query icin params: Record<string, string>, sonra body icin payload: Record<string, unknown>, en son headers: Record<string, string> = {}.
+- Query Playwright'in params secenegine verilir; body data: payload olarak verilir.
+- headers her zaman = {} varsayilanina sahiptir ve istek header'larina ...headers ile eklenir.
+- Sabit header key'leri kucuk harf yazilir: accept, content-type.
+- Query argumani her zaman params olarak adlandirilir; pagingParams gibi metoda ozel adlar kullanilmaz.
+
 ---
 
 ## Endpoint Yonetimi Kurallari
