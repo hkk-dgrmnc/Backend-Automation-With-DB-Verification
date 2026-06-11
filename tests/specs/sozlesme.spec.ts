@@ -3,6 +3,7 @@ import { endpoints } from '../../src/config/endpoints';
 import { env } from '../../src/config/env';
 import * as apiAssert from '../../src/utils/assertions';
 import * as logger from '../../src/utils/logger';
+import * as testDataGenerator from '../../src/utils/testDataGenerator';
 import { readJson } from '../../src/utils/responseHelper';
 import { getAuthorizationHeaders } from '../../src/utils/tokenManager';
 import { getByIdWithAllRelationsParams } from '../data/sozlesmeParams';

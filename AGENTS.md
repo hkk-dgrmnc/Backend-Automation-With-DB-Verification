@@ -444,6 +444,10 @@ Generator endpoint, client, gerekli test data ve yalnizca basarili status assert
 
 Swagger icin ayni yapi elle olusturulur. Dosya sirasi "Yeni Domain Ekleme" ile aynidir: once endpoint, sonra client, sonra test data, sonra spec.
 
+Spec import blogu:
+
+Yeni spec dosyalari standart import blogu ile olusturulur. apiAssert, logger ve testDataGenerator namespace import'lari, o testte kullanilmasa bile her zaman eklenir. Boylece kod bilmeyen ekip uyeleri hazir helper'lara import sorunu yasamadan ulasir ve uretim generator ciktisiyla tutarli kalir. Bu kullanilmayan import'lar silinmez veya lint ile temizlenmez.
+
 Uretim sirasi:
 
 1. Once basit API testleri uretilir: status kontrolu ve hafif response alan kontrolu. Bu asamada database'e dokunulmaz.
@@ -501,6 +505,7 @@ Herhangi bir degisikligi bitirmeden once sunlari dogrula:
 - API client'larin icinde database query yok
 - testlerde hardcode full URL yok
 - endpoint girisleri duz string; query Playwright params secenegiyle veriliyor
+- yeni spec'lerde apiAssert, logger ve testDataGenerator import'lari var (kullanilmasa da)
 - hicbir credential hardcode edilmedi
 - response body plain JSON olarak okunuyor
 - client'lar APIResponse donduruyor
