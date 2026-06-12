@@ -209,6 +209,8 @@ Database client sorumluluklari:
 - yeniden kullanilabilir bir query calistirma fonksiyonu sunmak
 - gerektiginde pool'u guvenli sekilde kapatmanin bir yolunu sunmak
 
+Pool yasam dongusu testlerde yonetilmez: pool ilk query'de olusturulur ve worker kapanirken tests/fixtures/apiTest.ts icindeki worker-scoped fixture closeDbPool'u otomatik cagirir.
+
 Query kurallari:
 
 - SQL ifadeleri test dosyalarinin disinda tutulmalidir

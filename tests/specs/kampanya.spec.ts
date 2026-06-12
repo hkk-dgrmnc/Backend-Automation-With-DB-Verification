@@ -24,9 +24,7 @@ test.describe('Kampanya API', () => {
 
     await logger.logApiResponseWithBody(response);
 
-    expect(response.status()).toBe(200);
-
-    // await expect(response).toBeOK();
+    apiAssert.expectStatus(response, 200);
 
     logger.logHighlight(`Oluşturulan kampanya kategorisi: ${kampanyaKategoriAdi}`);
   });

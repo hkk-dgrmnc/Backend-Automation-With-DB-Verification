@@ -5,7 +5,7 @@ export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
   workers: env.isCi ? 2 : undefined,
-  timeout: env.requestTimeoutMs,
+  timeout: env.testTimeoutMs,
   retries: env.isCi ? 1 : 0,
   reporter: [
     ['list'],
@@ -14,7 +14,7 @@ export default defineConfig({
   use: {
     baseURL: env.baseUrl,
     extraHTTPHeaders: {
-      Accept: 'application/json'
+      accept: 'application/json'
     }
   }
 });

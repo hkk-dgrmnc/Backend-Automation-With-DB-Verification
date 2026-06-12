@@ -1,8 +1,11 @@
-import { expect, request as playwrightRequest, test as base, type APIRequestContext } from '@playwright/test';
-import { env } from '../../src/config/env';
+import { expect, test as base, type APIRequestContext } from '@playwright/test';
+import { closeDbPool } from '../../src/database/dbClient';
 import * as logger from '../../src/utils/logger';
 
-export const test = base.extend<{ logContext: void; apiRequest: APIRequestContext }>({
+export const test = base.extend<
+  { logContext: void; apiRequest: APIRequestContext },
+  { dbPoolCleanup: void }
+>({
   logContext: [
     async ({}, use, testInfo) => {
       logger.setTestLogContext(testInfo);
@@ -16,17 +19,21 @@ export const test = base.extend<{ logContext: void; apiRequest: APIRequestContex
     { auto: true }
   ],
 
-  apiRequest: async ({}, use) => {
-    const context = await playwrightRequest.newContext({
-      baseURL: env.baseUrl,
-      extraHTTPHeaders: {
-        accept: '*/*'
-      }
-    });
+  // Playwright'in yerlesik request fixture'ini kullanir; baseURL ve varsayilan
+  // header'lar tek kaynaktan (playwright.config.ts use blogu) gelir.
+  apiRequest: async ({ request }, use) => {
+    await use(request);
+  },
 
-    await use(context);
-    await context.dispose();
-  }
+  // Worker kapanirken database pool'unu kapatir. Database verification
+  // kullanilmadiysa closeDbPool hicbir sey yapmaz.
+  dbPoolCleanup: [
+    async ({}, use) => {
+      await use();
+      await closeDbPool();
+    },
+    { scope: 'worker', auto: true }
+  ]
 });
 
 export { expect };

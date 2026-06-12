@@ -4,7 +4,7 @@ const logLevels = ['silent', 'error', 'warn', 'info', 'debug'] as const;
 
 export const env = {
   baseUrl: getStringEnv('BASE_URL', 'https://dev-mys.ptt.gov.tr'),
-  requestTimeoutMs: getNumberEnv('REQUEST_TIMEOUT_MS', 30000, 1),
+  testTimeoutMs: getNumberEnv('TEST_TIMEOUT_MS', 30000, 1),
   testsEnabled: getBooleanEnv('TESTS_ENABLED', false),
   isCi: getBooleanEnv('CI', false),
   logging: {

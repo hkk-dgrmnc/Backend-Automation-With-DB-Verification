@@ -74,13 +74,19 @@ spec'leri skip edilir, unit testler calismaya devam eder.
 npm run test:api
 ```
 
-`tests` altindaki Playwright testlerini calistirir.
+`tests/specs` altindaki API testlerini calistirir.
+
+```bash
+npm run test:unit
+```
+
+`tests/unit` altindaki helper ve utility unit testlerini calistirir.
 
 ```bash
 npm run typecheck
 ```
 
-TypeScript tip kontrolu yapar.
+Ana proje ve `tools/api-test-generator` icin TypeScript tip kontrolu yapar.
 
 ```bash
 npm run test:generator

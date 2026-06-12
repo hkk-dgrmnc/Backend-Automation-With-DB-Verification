@@ -2,7 +2,12 @@ import { Pool } from 'pg';
 import { dbConfig } from '../config/dbConfig';
 import * as logger from '../utils/logger';
 
-const pool = new Pool(dbConfig);
+// Pool ilk query'de olusturulur; database verification kullanmayan testler pg'ye dokunmaz.
+let pool: Pool | undefined;
+
+function getPool() {
+  return (pool ??= new Pool(dbConfig));
+}
 
 export async function query(text: string, params: unknown[] = []) {
   const startTime = Date.now();
@@ -10,7 +15,7 @@ export async function query(text: string, params: unknown[] = []) {
   logger.logDbQuery(text, params);
 
   try {
-    const result = await pool.query(text, params);
+    const result = await getPool().query(text, params);
     logger.logDbResult(result.rows, Date.now() - startTime);
     return result.rows;
   } catch (error) {
@@ -20,5 +25,11 @@ export async function query(text: string, params: unknown[] = []) {
 }
 
 export async function closeDbPool() {
-  await pool.end();
+  if (!pool) {
+    return;
+  }
+
+  const activePool = pool;
+  pool = undefined;
+  await activePool.end();
 }
