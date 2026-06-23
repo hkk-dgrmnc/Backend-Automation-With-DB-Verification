@@ -8,6 +8,7 @@
     "test:api": "playwright test tests/specs",
     "test:unit": "playwright test tests/unit",
     "test:generator": "node --import tsx --test tools/api-test-generator/test/generator.test.ts",
+    "test:quality": "npm run typecheck && npm run test:unit && npm run test:generator",
     "generate:api-test": "tsx tools/api-test-generator/index.ts",
     "report": "playwright show-report",
     "typecheck": "tsc --noEmit && tsc -p tools/api-test-generator --noEmit"

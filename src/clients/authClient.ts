@@ -4,13 +4,17 @@ import { endpoints } from '../config/endpoints';
 export class AuthClient {
   constructor(private readonly request: APIRequestContext) {}
 
-  async login(loginBody: Record<string, unknown>): Promise<APIResponse> {
+  async login(
+    payload: Record<string, unknown>,
+    headers: Record<string, string> = {}
+  ): Promise<APIResponse> {
     return this.request.post(endpoints.auth.login, {
       headers: {
         accept: '*/*',
-        'Content-Type': 'application/json'
+        'content-type': 'application/json',
+        ...headers
       },
-      data: loginBody
+      data: payload
     });
   }
 }

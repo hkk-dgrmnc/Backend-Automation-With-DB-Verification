@@ -354,9 +354,14 @@ package.json su amaclar icin ise yarar script'ler icermelidir:
 
 - tum testleri calistirmak
 - API testlerini calistirmak
+- kalite kapisi icin typecheck, unit test ve generator testlerini tek komutta calistirmak
 - raporu acmak
 
 Gunluk kullanimi veya CI entegrasyonunu iyilestirdiginde ek script'ler eklenebilir.
+
+CI kalite kapisi `npm run test:quality` komutunu calistirmalidir. Bu komut en az
+`npm run typecheck`, `npm run test:unit` ve `npm run test:generator`
+kontrollerini kapsamalidir.
 
 ---
 

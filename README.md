@@ -95,6 +95,13 @@ npm run test:generator
 Yerel API test generator unit testlerini calistirir.
 
 ```bash
+npm run test:quality
+```
+
+CI kalite kapisinda calisan kontrolleri tek komutta calistirir: TypeScript tip
+kontrolu, unit testler ve generator testleri.
+
+```bash
 npm run report
 ```
 

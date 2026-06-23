@@ -1,173 +1,247 @@
-# MYS Backend API Automation Framework
+# Backend API Automation Framework
 
-## Kisa Ozet
+## Genel Bakis
 
-Bu proje, MYS backend servisleri icin hazirlanmis TypeScript + Playwright Test
-tabanli API automation framework'udur. Framework, API endpoint'lerinin beklenen
-status ve response davranisini dogrular; gerekli oldugunda API sonucunu
-PostgreSQL uzerindeki kalici veriyle karsilastirarak database verification
-yapar.
+Backend API Automation Framework, farkli backend projelerinde API testlerini
+ortak bir standarda almak icin hazirlanmis TypeScript + Playwright Test tabanli
+bir otomasyon altyapisidir.
 
-Ana hedef, backend API testlerini standart, tekrar calistirilabilir, bakimi kolay
-ve genisletilebilir bir yapiya almaktir.
+Framework; endpoint, client, test data, assertion, token, logging ve database
+verification ihtiyaclarini duzenli bir yapi altinda toplar. Bu sayede yeni API
+testleri ayni dille yazilir, mevcut testler daha kolay bakilir ve proje
+buyudukce test kodunun dagilmasi engellenir.
 
-## Projenin Amaci
+Yapi belirli bir backend projesine bagimli olacak sekilde tasarlanmamistir.
+Domain, endpoint ve test data katmanlari degistirilerek farkli backend
+projelerine entegre edilebilir.
 
-Proje su ihtiyaclari karsilar:
+Bu proje sadece API status kontrolu yapan basit bir test seti olarak
+tasarlanmamistir. Gereken durumlarda API sonucunu PostgreSQL uzerindeki kalici
+veriyle karsilastirarak database verification yapar. Boylece API'nin sadece
+cevap donmesi degil, beklenen veriyi gercekten uretmesi, guncellemesi veya
+korumasi da kontrol edilebilir.
 
-- Backend API endpoint'leri icin otomatik test altyapisi saglamak.
-- Testlerde ortak endpoint, token, logging ve assertion yapisi kullanmak.
-- Gercek API ortamlarina kontrolsuz istek atilmasini engellemek.
-- Kritik business akislarinda API sonucunu database kaydiyla dogrulamak.
-- Yeni endpoint testlerinin ayni proje standardiyla hizli eklenmesini saglamak.
+## Projenin Degeri
 
-Bu proje database'i dogrudan test etmek icin kullanilmaz. Database katmani,
-yalnizca API sonucunun kalici veriyle uyumlu olup olmadigini dogrulamak icin
-kullanilir.
+| Alan | Katki |
+| --- | --- |
+| Standartlasma | Endpoint, client, test data, assertion, token ve logging yapisi tek yaklasimla yonetilir. |
+| Bakim kolayligi | Her domain ayni klasor ve sorumluluk ayrimi ile buyur. Yeni test eklemek mevcut yapinin kopyasi degil, standardin devami olur. |
+| Guvenlik | Credential, token, cookie ve API key gibi hassas degerler kaynak koda yazilmaz; logger hassas alanlari maskeler. |
+| Kontrollu calisma | Gercek API testleri varsayilan olarak kapali gelir. Yanlislikla dev/test ortamlarina istek atilmasi engellenir. |
+| Veri dogrulama | Kritik islemlerde API response, database uzerindeki kalici veriyle dogrulanabilir. |
+| AI destekli bakim | Kurallar `AGENTS.md` icinde tek kaynak olarak tutulur; generator ayni standartta kod uretir. |
+| CI kalitesi | Typecheck, unit test ve generator testleri tek kalite kapisi altinda otomatik kosulabilir. |
 
-## Kapsam
+## Cozulen Problem
 
-Mevcut test domain'leri:
+Backend API otomasyon projelerinde zamanla en cok gorulen problemler sunlardir:
 
-- Auth
-- Musteri Karti
-- Kampanya
-- Platform
-- Sozlesme
+- Endpoint path'lerinin farkli dosyalara dagilmasi.
+- Her testte tekrar eden token, header ve payload hazirlama kodlari.
+- Test icinde raw SQL veya dogrudan database connection olusturulmasi.
+- Client katmaninda assertion veya business validation bulunmasi.
+- Her yeni endpoint icin farkli bir kod yazim stili olusmasi.
+- Testlerin buyudukce okunamaz ve bakimi zor hale gelmesi.
 
-Framework yeni backend domain'leri eklendikce ayni klasor ve sorumluluk ayrimi
-ile genisletilebilir.
+Bu framework bu problemleri bastan kurallarla ayirir. Client sadece API request
+gonderir, spec dosyasi business assertion yapar, database katmani sadece API
+sonucunu dogrulamak icin kullanilir.
 
-## Kullanilan Teknolojiler
+## Ornek Uygulama Kapsami
 
-- TypeScript
-- Playwright Test
-- Playwright APIRequestContext
-- Playwright expect
-- PostgreSQL `pg` client
-- dotenv
+Framework mevcut repo icinde su domain'ler uzerinden orneklenmistir:
 
-Projede ORM, DTO, POJO veya response model class yapilari kullanilmaz. API
-cevaplari plain JSON olarak okunur ve dogrulama test katmaninda yapilir.
+| Domain | Kapsam |
+| --- | --- |
+| Auth | Login ve merkezi token yonetimi |
+| Musteri Karti | Listeleme ve isim endpoint kontrolleri |
+| Kampanya | Kampanya kategori olusturma akisi |
+| Platform | Platform olusturma endpoint testi |
+| Sozlesme | ID ile sozlesme detay endpoint kontrolu |
+
+Bu domain'ler framework'un nasil kullanilacagini gosteren mevcut uygulama
+ornekleridir. Yeni bir backend projesinde ayni yapi korunarak farkli domain,
+endpoint ve test senaryolari eklenebilir.
 
 ## Mimari Yaklasim
 
-Proje sorumluluklari net ayiran basit bir yapi izler:
+| Katman | Sorumluluk |
+| --- | --- |
+| `src/config` | Environment, endpoint ve database konfigurasyonlari |
+| `src/clients` | Domain bazli API request metotlari |
+| `src/utils` | Token manager, logger, response helper ve assertion helper'lari |
+| `src/database` | Database verification icin merkezi db client, query ve repository katmani |
+| `tests/data` | Payload ve query param factory'leri |
+| `tests/specs` | API test senaryolari ve business assertion'lar |
+| `tests/unit` | Helper ve utility unit testleri |
+| `tools/api-test-generator` | cURL'den framework standardinda test taslagi ureten yerel arac |
 
-- `src/config`: Environment, endpoint ve database konfigurasyonlari.
-- `src/clients`: Domain bazli API client'lari.
-- `src/utils`: Token, logger, response ve assertion helper'lari.
-- `src/database`: Database verification icin query ve repository katmani.
-- `tests/data`: Payload ve query param ureten test data factory'leri.
-- `tests/specs`: API test senaryolari.
-- `tools/api-test-generator`: cURL'den test taslagi ureten yerel arac.
+Bu ayrim sayesinde proje buyudukce her dosyanin gorevi net kalir.
 
-Endpoint path'leri tek merkezde tutulur. Test ve client dosyalarinda full URL
-yazilmaz. Base URL environment uzerinden gelir.
+## Temel Tasarim Kurallari
+
+- Endpoint path'leri sadece `src/config/endpoints.ts` icinde tutulur.
+- Test veya client dosyalarinda full URL yazilmaz.
+- Client dosyalari sadece API request atar ve `APIResponse` dondurur.
+- Client icinde assertion, database query veya business validation bulunmaz.
+- Test dosyalari response status, response body ve business dogrulamalardan sorumludur.
+- Testlerde raw SQL veya database connection bulunmaz.
+- Database sadece API sonucunu desteklemek icin verification katmani olarak kullanilir.
+- DTO, POJO, ORM veya response model class yapilari kullanilmaz.
+- API response'lari plain JSON olarak okunur.
+- Credential, token, API key ve cookie gibi hassas bilgiler kaynak koda yazilmaz.
 
 ## Test Akisi
 
-Tipik bir API testi su adimlari izler:
+Tipik bir API testi su sirayla ilerler:
 
-1. Payload veya query parametreleri hazirlanir.
+1. Payload veya query parametreleri data factory uzerinden hazirlanir.
 2. Endpoint auth istiyorsa token manager uzerinden authorization header alinir.
 3. Domain client'i ile API istegi gonderilir.
 4. Response status kontrol edilir.
 5. Response body plain JSON olarak okunur.
-6. Business icin gerekli alanlar assert edilir.
-7. Gerekiyorsa response database sonucu ile karsilastirilir.
+6. Gerekli alanlar assert edilir.
+7. Gerekirse API response database sonucu ile karsilastirilir.
 
-Client katmani sadece request atar ve response dondurur. Assertion, business
-validation veya database sorgusu client icinde bulunmaz.
-
-## Gercek API Testlerini Calistirma
-
-Gercek API testleri varsayilan olarak kapali gelir:
-
-```env
-TESTS_ENABLED=false
-```
-
-Calistirmak icin `.env` dosyasinda asagidaki degerler set edilir:
-
-```env
-TESTS_ENABLED=true
-BASE_URL=https://dev-mys.ptt.gov.tr
-AUTH_USERNAME=
-AUTH_PASSWORD=
-```
-
-Temel komutlar:
-
-```bash
-npm install
-npm run typecheck
-npm test
-```
-
-## Token Yonetimi
-
-Authentication tekrarini onlemek icin token islemleri merkezi helper uzerinden
-yapilir. Login response'undan token alinir, cache'lenir ve sonraki testlerde
-authorization header olarak kullanilir.
-
-JWT token'larda son kullanma zamani token icindeki `exp` alanindan okunur. JWT
-olmayan token'larda `.env` icindeki cache TTL degeri kullanilir.
+Bu akis testleri okunabilir, genisletilebilir ve review edilebilir tutar.
 
 ## Database Verification Yaklasimi
 
-Database verification sadece API testini anlamli bicimde guclendirdigi durumlarda
-eklenir:
+Bu proje database'i dogrudan test etmek icin tasarlanmamistir. Database katmani,
+yalnizca API davranisinin kalici veriyle uyumunu dogrulamak icin kullanilir.
 
-- Create islemlerinin database'de kayit olusturdugunu dogrulamak.
-- Update islemlerinde ilgili alanlarin guncellendigini dogrulamak.
-- Delete veya pasiflestirme islemlerinde beklenen kalici durumun olustugunu
-  dogrulamak.
-- Kritik business akislarinda API response ile database degerlerini
-  karsilastirmak.
+Database verification su durumlarda anlamlidir:
 
-Test dosyalarinda raw SQL veya database connection bulunmaz. SQL ifadeleri
-`src/database/queries`, database erisim metotlari ise
-`src/database/repositories` altinda tutulur.
+- Create isleminin database'de kayit olusturdugunu dogrulamak.
+- Update isleminin ilgili alanlari guncelledigini dogrulamak.
+- Delete veya pasiflestirme isleminin beklenen kalici durumu olusturdugunu dogrulamak.
+- Kritik business akislarinda API response ile database degerlerini karsilastirmak.
 
-## Logging ve Guvenlik
-
-Loglar varsayilan olarak kapali gelir:
-
-```env
-LOG_LEVEL=silent
-```
-
-Debug ihtiyacinda log seviyesi acilabilir. Request/response body ve database row
-icerikleri ancak bilerek `LOG_PAYLOADS=true` ve `LOG_DB_QUERIES=true` yapilirsa
-yazilir.
-
-Authorization, token, password, cookie, secret ve API key gibi hassas alanlar
-logger tarafindan maskelenir.
+SQL ifadeleri `src/database/queries` altinda, database erisim metotlari
+`src/database/repositories` altinda tutulur. Test dosyasi raw SQL bilmez.
 
 ## API Test Generator
 
-Projede cURL komutundan framework standardina uygun test taslagi uretebilen
-yerel bir generator bulunur:
+Projede cURL komutundan framework standardina uygun baslangic testi ureten yerel
+bir generator bulunur:
 
 ```bash
 npm run generate:api-test
 ```
 
-Generator endpoint, client metodu, test data dosyalari ve basarili status
-assertion'i iceren spec taslagini olusturur. Internet, yapay zeka servisi veya
-API key kullanmaz.
+Generator sunlari otomatik hazirlar:
 
-## Bakim Kurallari
+- Endpoint tanimi
+- Domain client metodu
+- Query param veya body icin test data factory
+- Basarili status assertion'i iceren spec taslagi
+- Merkezi token manager kullanimi
+- Hassas header ve body alanlari icin guvenli davranis
 
-Yeni endpoint veya domain eklenirken su standart korunur:
+Generator internete, yapay zeka servisine veya API key'e baglanmaz. Tamamen
+yerel calisir. Ayni endpoint, client metodu, test data fonksiyonu veya spec testi
+farkli icerikle zaten varsa dosyalari sessizce ezmez; hata vererek kontrolu
+gelistiriciye birakir.
 
-- Endpoint path'i `src/config/endpoints.ts` icine eklenir.
-- API istegi domain client'i icinde tanimlanir.
-- Payload ve query parametreleri `tests/data` altinda uretilir.
-- Assertion ve business dogrulama spec dosyasinda yapilir.
-- Database verification gerekiyorsa query ve repository katmani ayrica eklenir.
-- Credential veya full URL kaynak koda yazilmaz.
+## Kalite Kapisi ve CI
 
-Bu ayrim, testlerin okunabilir kalmasini ve yeni endpoint'lerin ayni yaklasimla
-hizli eklenmesini saglar.
+Projede kalite kontrolu tek komut altinda toplanmistir:
+
+```bash
+npm run test:quality
+```
+
+Bu komut su kontrolleri calistirir:
+
+- TypeScript typecheck
+- Unit testler
+- API test generator testleri
+
+GitHub Actions uzerinde push ve pull request durumlarinda ayni kalite kapisi
+calisacak sekilde workflow hazirlanmistir. Bu sayede framework kurallari sadece
+dokumanda kalmaz; kod degisikligi yapildiginda otomatik olarak kontrol edilir.
+
+## Guvenlik ve Loglama
+
+Framework guvenli varsayilanlarla gelir:
+
+```env
+TESTS_ENABLED=false
+LOG_LEVEL=silent
+LOG_PAYLOADS=false
+LOG_DB_QUERIES=false
+```
+
+Bu yaklasimla:
+
+- Gercek API testleri bilincli olarak acilmadan calismaz.
+- Request/response body'leri varsayilan olarak loglanmaz.
+- Database query ve row icerikleri varsayilan olarak loglanmaz.
+- Authorization, token, password, cookie, secret ve API key gibi hassas alanlar maskelenir.
+
+## Kullanilan Teknolojiler
+
+| Teknoloji | Kullanim Amaci |
+| --- | --- |
+| TypeScript | Tip guvenligi ve surdurulebilir kod yapisi |
+| Playwright Test | API test runner, fixture ve assertion altyapisi |
+| Playwright APIRequestContext | HTTP request katmani |
+| PostgreSQL `pg` client | Database verification |
+| dotenv | Environment konfigurasyonu |
+| GitHub Actions | CI kalite kapisi |
+
+## Clean Code ve Surdurulebilirlik Kararlari
+
+Bu framework'te amac gereksiz soyutlama eklemek degil, buyudukce okunabilir
+kalacak bir test standardi olusturmaktir.
+
+Bu nedenle:
+
+- ORM kullanilmaz.
+- DTO, POJO veya response model class eklenmez.
+- API response'lari plain JSON olarak ele alinir.
+- Reusable helper'lar merkezi tutulur.
+- Domain'e ozgu davranislar ilgili client, data veya spec dosyasinda kalir.
+- Database verification sadece business olarak deger kattiginda eklenir.
+
+Bu kararlar, hem manuel gelistirmeyi hem de AI destekli bakimi daha guvenli ve
+tutarli hale getirir.
+
+## Yeni Endpoint Ekleme Standardi
+
+Yeni bir endpoint veya domain eklendiginde izlenecek standart:
+
+1. Endpoint path'i `src/config/endpoints.ts` icine eklenir.
+2. API istegi ilgili domain client'i icinde tanimlanir.
+3. Query param gerekiyorsa `tests/data/<domain>Params.ts` eklenir.
+4. Request body gerekiyorsa `tests/data/<domain>Payloads.ts` eklenir.
+5. API testi `tests/specs/<domain>.spec.ts` icinde yazilir.
+6. Database verification gerekiyorsa query ve repository katmani ayrica eklenir.
+7. Degisiklik `npm run test:quality` ile dogrulanir.
+
+## Sahiplik ve Gorunurluk
+
+| Alan | Bilgi |
+| --- | --- |
+| Framework sahibi | `<Ad Soyad>` |
+| Teknik kapsam | Backend API automation, token yonetimi, logging, database verification, generator ve CI kalite kapisi |
+| Hedef kullanim | Farkli backend projelerinde API testlerinin ortak standarda alinmasi |
+| Bakim modeli | Yazili kurallar + generator + otomatik kalite kontrolleri |
+| Genisleme modeli | Yeni domain'ler ayni klasor yapisi ve sorumluluk ayrimi ile eklenir |
+
+Bu dokuman, framework'un teknik kararlarini ve ekibe sagladigi operasyonel
+degeri gostermek icin hazirlanmistir. Proje; standartlasma, guvenlik, test
+kalitesi ve surdurulebilirlik hedefleriyle gelistirilmistir.
+
+## Kisa Sonuc
+
+Backend API Automation Framework; farkli backend projelerine entegre edilebilen,
+API testlerini ortak bir dile alan, kontrollu sekilde genisleyebilen, database
+verification ile kritik akis dogrulamasini guclendiren ve CI kalite kapisi ile
+korunabilen profesyonel bir otomasyon altyapisidir.
+
+Framework, yeni endpoint testlerinin hizli uretilmesini saglarken uzun vadeli
+bakim maliyetini azaltmayi hedefler. Bu yapi, ekip icinde tekrar eden test
+kodunu azaltir, standartlari gorunur hale getirir ve API otomasyonunu
+surdurulebilir bir seviyeye tasir.
