@@ -4,11 +4,11 @@ import { endpoints } from '../config/endpoints';
 export class MusteriKartiClient {
   constructor(private readonly request: APIRequestContext) {}
 
-  async getAllWithPaging(
+  async getAllMusteriKartiWithPaging(
     params: Record<string, string>,
     headers: Record<string, string> = {}
   ): Promise<APIResponse> {
-    return this.request.get(endpoints.musteriKarti.getAllWithPaging, {
+    return this.request.get(endpoints.musteriKarti.getAllMusteriKartiWithPaging, {
       headers: {
         accept: 'application/json',
         ...headers

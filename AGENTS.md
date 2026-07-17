@@ -125,7 +125,16 @@ Client metot imzasi standardi:
 - Query Playwright'in params secenegine verilir; body data: payload olarak verilir.
 - headers her zaman = {} varsayilanina sahiptir ve istek header'larina ...headers ile eklenir.
 - Sabit header key'leri kucuk harf yazilir: accept, content-type.
+- Header sirasi deterministiktir: once accept, sonra content-type, en sonda ...headers.
+- Tum metotlarda accept: application/json kullanilir; body gonderen metotlarda ek olarak content-type: application/json bulunur. */* kullanilmaz.
 - Query argumani her zaman params olarak adlandirilir; pagingParams gibi metoda ozel adlar kullanilmaz.
+
+Client metot adlandirmasi:
+
+- Metot adi HTTP fiilini degil domain aksiyonunu tasir: login, createPlatform, getAllMusteriKartiWithPaging (postPlatform degil).
+- Endpoint aksiyonu bilinen bir aksiyon onekiyle basliyorsa (get, create, add, update, delete...) aksiyon adi aynen camelCase yapilir.
+- Aksi halde HTTP metodu su aksiyon oneklerine cevrilir: GET -> get, POST -> create, PUT -> update, PATCH -> patch, DELETE -> delete.
+- Endpoint config key'i client metot adiyla ayni olmalidir: endpoints.platform.createPlatform <-> platformClient.createPlatform.
 
 ---
 
@@ -208,6 +217,13 @@ Database client sorumluluklari:
 - database erisimini merkezi olarak yonetmek
 - yeniden kullanilabilir bir query calistirma fonksiyonu sunmak
 - gerektiginde pool'u guvenli sekilde kapatmanin bir yolunu sunmak
+- pool'a error handler eklemek (bosta baglanti hatasi worker'i cokertmemeli)
+
+Database konfigurasyon kurallari:
+
+- Baglanti ve sorgu timeout'lari config'ten yonetilir: DB_CONNECT_TIMEOUT_MS (default 5000), DB_IDLE_TIMEOUT_MS (default 10000), DB_QUERY_TIMEOUT_MS (default 15000).
+- TLS sertifika dogrulamasi default aciktir; yalnizca self-signed sertifikali ortamlarda DB_SSL_REJECT_UNAUTHORIZED=false ile bilincli kapatilir.
+- Zorunlu DB alanlari (DB_HOST, DB_NAME, DB_USER, DB_PASSWORD) import aninda degil, pool ilk olusturulurken dogrulanir ve eksik alanlar net hatayla listelenir. API-only testler bundan etkilenmez.
 
 Pool yasam dongusu testlerde yonetilmez: pool ilk query'de olusturulur ve worker kapanirken tests/fixtures/apiTest.ts icindeki worker-scoped fixture closeDbPool'u otomatik cagirir.
 
@@ -259,6 +275,20 @@ Testler sunlari yapmamalidir:
 - token veya header mantigini tekrar etmek
 - POJO/DTO/model class yapilari kullanmak
 - assertion mantigini API client'larin icine koymak
+
+Spec akis standardi (tum spec'lerde ayni sira):
+
+1. logger.logApiRequest(...) ile istek loglanir; query'li isteklerde params besinci arguman olarak verilir: logApiRequest(method, endpoint, body, headers, params).
+2. Client cagrilir.
+3. await logger.logApiResponseWithBody(response) ile response, assertion'lardan ONCE loglanir. Boylece status beklenmedik gelirse kok neden (hata body'si) raporda gorunur.
+4. Status assert edilir (apiAssert.expectStatus).
+5. Gerekiyorsa body readJson ile okunur ve alan assertion'lari yapilir. Sema bilinmiyorsa yalnizca body tipi dogrulanir (apiAssert.expectFieldType(body, 'object')).
+
+Spec metin standartlari:
+
+- Skip satiri tek varyanttir (ASCII): test.skip(!env.testsEnabled, 'Gercek API testleri kapali. Calistirmak icin TESTS_ENABLED=true yap.');
+- Test adi kalibi: "<clientMetodu> returns success" ile baslar; gerekirse davranis aciklamasi eklenir.
+- Create akislarinda unique olmasi gereken alanlar sabit degerle degil, testDataGenerator ile uretilen random degerle overrides uzerinden beslenir; boylece paralel calistirma ve CI retry'lari flakiness uretmez.
 
 ---
 
@@ -461,7 +491,19 @@ Swagger icin ayni yapi elle olusturulur. Dosya sirasi "Yeni Domain Ekleme" ile a
 
 Spec import blogu:
 
-Yeni spec dosyalari standart import blogu ile olusturulur. apiAssert, logger ve testDataGenerator namespace import'lari, o testte kullanilmasa bile her zaman eklenir. Boylece kod bilmeyen ekip uyeleri hazir helper'lara import sorunu yasamadan ulasir ve uretim generator ciktisiyla tutarli kalir. Bu kullanilmayan import'lar silinmez veya lint ile temizlenmez.
+Yeni spec dosyalari standart import blogu ile olusturulur. apiAssert, logger ve testDataGenerator namespace import'lari, o testte kullanilmasa bile her zaman eklenir. Fixture'dan import her zaman `import { expect, test } from '../fixtures/apiTest';` seklindedir; expect o testte kullanilmasa da kalir. Boylece kod bilmeyen ekip uyeleri hazir helper'lara import sorunu yasamadan ulasir ve uretim generator ciktisiyla tutarli kalir. Bu kullanilmayan import'lar silinmez veya lint ile temizlenmez.
+
+Test data factory adlandirmasi:
+
+Factory adi her zaman client metot adindan turetilir: <metotAdi>Params ve <metotAdi>Payload. Ornek: getAllMusteriKartiWithPagingParams, createPlatformPayload, loginPayload. Baska kalip kullanilmaz; boylece iki farkli metot ayni factory adina cokemez.
+
+Isimlendirmede Turkce karakterler:
+
+Identifier'larda Turkce karakterler ASCII'ye translitere edilir: c, g, i, o, s, u (Musteri, Sozlesme). Generator bunu otomatik yapar; elle yazilan kodda da ayni kural gecerlidir.
+
+Hassas alan kontrolu:
+
+Generator hassas gorunen body/query alan adlarinda uretimi durdurur. Kontrol kelime bazlidir (maxTokens gibi masum alanlar engellenmez, userPassword engellenir). Alan gercekten hassas degilse `--allow-field <alanAdi>` ile bilincli olarak izin verilir. Desteklenmeyen cURL girdileri sessizce yutulmaz; ya acik hata ya uyari uretilir.
 
 Uretim sirasi:
 
@@ -521,8 +563,14 @@ Herhangi bir degisikligi bitirmeden once sunlari dogrula:
 - testlerde hardcode full URL yok
 - endpoint girisleri duz string; query Playwright params secenegiyle veriliyor
 - yeni spec'lerde apiAssert, logger ve testDataGenerator import'lari var (kullanilmasa da)
+- fixture'dan expect ve test import edildi (expect kullanilmasa da)
 - hicbir credential hardcode edilmedi
 - response body plain JSON olarak okunuyor
 - client'lar APIResponse donduruyor
+- client header sirasi accept -> content-type -> ...headers ve degerler application/json
+- client metot adi HTTP fiili degil domain aksiyonu tasiyor
+- spec akisi standart sirada: once logApiResponseWithBody, sonra assertion
+- test data factory adlari <metotAdi>Params / <metotAdi>Payload kalibina uyuyor
+- create akislarindaki unique alanlar random uretiliyor (sabit deger yok)
 - testler business assertion yapiyor
 - database yalnizca API sonucu verification'i icin kullaniliyor

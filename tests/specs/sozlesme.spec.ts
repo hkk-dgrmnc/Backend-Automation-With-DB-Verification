@@ -10,21 +10,22 @@ import { getByIdWithAllRelationsParams } from '../data/sozlesmeParams';
 import { expect, test } from '../fixtures/apiTest';
 
 test.describe('Sozlesme API', () => {
-  test.skip(!env.testsEnabled, 'Gerçek API testleri kapalı. Çalıştırmak için TESTS_ENABLED=true yap.');
+  test.skip(!env.testsEnabled, 'Gercek API testleri kapali. Calistirmak icin TESTS_ENABLED=true yap.');
 
   test('getByIdWithAllRelations returns success', async ({ apiRequest }) => {
     const sozlesmeClient = new SozlesmeClient(apiRequest);
     const params = getByIdWithAllRelationsParams();
     const authHeaders = await getAuthorizationHeaders(apiRequest);
 
-    logger.logApiRequest('GET', endpoints.sozlesme.getByIdWithAllRelations, undefined, authHeaders);
+    logger.logApiRequest('GET', endpoints.sozlesme.getByIdWithAllRelations, undefined, authHeaders, params);
 
     const response = await sozlesmeClient.getByIdWithAllRelations(params, authHeaders);
+
+    await logger.logApiResponseWithBody(response);
 
     apiAssert.expectStatus(response, 200);
 
     const body = await readJson(response);
-    logger.logApiResponse(response, body);
 
     // Basit API testi: status ve response body'nin plain JSON object geldiğini doğrular.
     apiAssert.expectFieldType(body, 'object');

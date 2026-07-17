@@ -1,12 +1,28 @@
 import { Pool } from 'pg';
-import { dbConfig } from '../config/dbConfig';
+import { dbConfig, validateDbConfig } from '../config/dbConfig';
 import * as logger from '../utils/logger';
 
 // Pool ilk query'de olusturulur; database verification kullanmayan testler pg'ye dokunmaz.
 let pool: Pool | undefined;
+let poolClosed = false;
 
 function getPool() {
-  return (pool ??= new Pool(dbConfig));
+  if (poolClosed) {
+    throw new Error('Database pool kapatıldı. closeDbPool sonrası yeni query çalıştırılamaz.');
+  }
+
+  if (!pool) {
+    validateDbConfig();
+    pool = new Pool(dbConfig);
+
+    // Bosta bekleyen baglantida olusan hata (DB restart, ag kopmasi) listener
+    // olmadan Node process'ini, yani Playwright worker'ini cokertir.
+    pool.on('error', (error) => {
+      logger.logError('DATABASE POOL IDLE CLIENT ERROR', error);
+    });
+  }
+
+  return pool;
 }
 
 export async function query(text: string, params: unknown[] = []) {
@@ -25,6 +41,8 @@ export async function query(text: string, params: unknown[] = []) {
 }
 
 export async function closeDbPool() {
+  poolClosed = true;
+
   if (!pool) {
     return;
   }

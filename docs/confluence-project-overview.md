@@ -102,10 +102,11 @@ test uretim standardini da yoneten bir otomasyon aracina donusturur.
 
 ## Bagli Database Verification Katmani
 
-Framework'te PostgreSQL database verification katmani hazir ve bagli durumdadir.
-Bu katman, API testlerinin database'e dogrudan ve daginik sekilde erismesini
-engeller; tum database kontrolleri merkezi db client, query dosyalari ve
-repository katmani uzerinden yapilir.
+Framework'te PostgreSQL database verification katmani hazir ve bagli durumdadir
+(su an ornek repository iskeletiyle gelir; domain bazli query/repository
+dosyalari ihtiyac olustukca eklenir). Bu katman, API testlerinin database'e
+dogrudan ve daginik sekilde erismesini engeller; tum database kontrolleri
+merkezi db client, query dosyalari ve repository katmani uzerinden yapilir.
 
 Database verification'in amaci database'i tek basina test etmek degildir. Amac,
 API'nin yaptigi islemin kalici veri tarafinda da dogru sonucu urettigini

@@ -3,7 +3,7 @@ import { getBooleanEnv, getEnumEnv, getNumberEnv, getStringEnv } from './configR
 const logLevels = ['silent', 'error', 'warn', 'info', 'debug'] as const;
 
 export const env = {
-  baseUrl: getStringEnv('BASE_URL', 'https://dev-mys.ptt.gov.tr'),
+  baseUrl: getStringEnv('BASE_URL', 'https://api.example.local'),
   testTimeoutMs: getNumberEnv('TEST_TIMEOUT_MS', 30000, 1),
   testsEnabled: getBooleanEnv('TESTS_ENABLED', false),
   isCi: getBooleanEnv('CI', false),

@@ -21,4 +21,14 @@ test.describe('Test data generator', () => {
       'totalWordCount en az 2 olmali.'
     );
   });
+
+  test('rejects an invalid word length', () => {
+    expect(() => testDataGenerator.generateTestString('Otomasyon', 2, 0)).toThrow(
+      'wordLength pozitif bir tam sayi olmali.'
+    );
+  });
+
+  test('rejects empty starting text', () => {
+    expect(() => testDataGenerator.generateTestString('   ', 2, 5)).toThrow('startingText bos olamaz.');
+  });
 });

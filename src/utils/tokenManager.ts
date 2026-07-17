@@ -1,6 +1,7 @@
 import type { APIRequestContext } from '@playwright/test';
 import { AuthClient } from '../clients/authClient';
 import { env } from '../config/env';
+import * as logger from './logger';
 
 type CachedAuthToken = {
   token: string;
@@ -71,9 +72,19 @@ export function extractAuthToken(body: unknown) {
 }
 
 export function cacheAuthToken(token: string) {
+  const expiresAtMs = findJwtExpiryMs(token) ?? Date.now() + env.auth.tokenCacheTtlMs;
+
+  // Token omru skew'den kisaysa cache hic kullanilamaz ve her cagri sessizce
+  // yeni login tetikler; bu durum gizli kalmasin diye uyari basilir.
+  if (expiresAtMs - Date.now() <= env.auth.tokenExpirySkewMs) {
+    logger.logWarn(
+      'Auth token ömrü AUTH_TOKEN_EXPIRY_SKEW_MS değerinden kısa; cache devre dışı kalacak ve her istek yeni login tetikleyecek.'
+    );
+  }
+
   cachedAuthToken = {
     token,
-    expiresAtMs: findJwtExpiryMs(token) ?? Date.now() + env.auth.tokenCacheTtlMs
+    expiresAtMs
   };
 }
 
@@ -102,10 +113,23 @@ async function requestAuthToken(request: APIRequestContext) {
   });
 
   if (!response.ok()) {
-    throw new Error(`Token request başarısız oldu. Status: ${response.status()}`);
+    // Backend'in dondugu hata nedeni kaybolmasin; body kisaltilarak eklenir.
+    const responseText = await response.text().catch(() => '');
+    const bodyDetail = responseText ? ` Body: ${responseText.slice(0, 500)}` : '';
+    throw new Error(`Token request başarısız oldu. Status: ${response.status()}.${bodyDetail}`);
   }
 
-  const body = await response.json();
+  let body: unknown;
+
+  try {
+    body = await response.json();
+  } catch {
+    throw new Error(
+      `Login response JSON olarak parse edilemedi. Status: ${response.status()}. ` +
+        'Proxy veya gateway JSON olmayan bir body dönmüş olabilir.'
+    );
+  }
+
   const token = extractAuthToken(body);
   cacheAuthToken(token);
 
@@ -134,6 +158,6 @@ export async function getAuthorizationHeaders(request: APIRequestContext) {
   const token = await getAuthToken(request);
 
   return {
-    Authorization: `Bearer ${token}`
+    authorization: `Bearer ${token}`
   };
 }

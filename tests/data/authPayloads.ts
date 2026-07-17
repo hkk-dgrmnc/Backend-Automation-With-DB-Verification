@@ -12,7 +12,7 @@ import { env } from '../../src/config/env';
  * Gerçek credential bu dosyaya yazılmaz.
  * Varsayılan değerler `.env` içindeki AUTH_USERNAME ve AUTH_PASSWORD alanlarından gelir.
  */
-export function createLoginPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+export function loginPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   if (!env.auth.username || !env.auth.password) {
     throw new Error('Login payload oluşturmak için AUTH_USERNAME ve AUTH_PASSWORD set edilmeli.');
   }

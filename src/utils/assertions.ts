@@ -128,6 +128,8 @@ export function expectArrayLength(value: unknown, expectedLength: number, messag
  * Plain JSON object üzerinde beklenen alanların bulunduğunu doğrular.
  * Örnek: ürün detayında temel alanlar zorunluysa `expectObjectHasFields(body, ['id', 'title', 'price'])` kullanılır.
  * Bu helper sadece field varlığını kontrol eder; field değerlerinin doğru olup olmadığını kontrol etmez.
+ * Dikkat: nokta içeren alan adları nested path olarak yorumlanır ('a.b' -> body.a.b).
+ * Alan adının kendisi nokta içeriyorsa bu helper kullanılmamalıdır.
  */
 export function expectObjectHasFields(body: unknown, fieldNames: string[], message?: string) {
   expect(body, message).toBeTruthy();

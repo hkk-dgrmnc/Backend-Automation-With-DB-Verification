@@ -26,11 +26,17 @@ export const test = base.extend<
   },
 
   // Worker kapanirken database pool'unu kapatir. Database verification
-  // kullanilmadiysa closeDbPool hicbir sey yapmaz.
+  // kullanilmadiysa closeDbPool hicbir sey yapmaz. Kapanis hatasi test
+  // sonuclarini kirletmesin diye yutulur ve yalnizca loglanir.
   dbPoolCleanup: [
     async ({}, use) => {
       await use();
-      await closeDbPool();
+
+      try {
+        await closeDbPool();
+      } catch (error) {
+        logger.logError('DATABASE POOL KAPATILAMADI', error);
+      }
     },
     { scope: 'worker', auto: true }
   ]

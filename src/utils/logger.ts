@@ -19,7 +19,8 @@ const sensitiveKeys = [
   'refreshToken',
   'secret',
   'apiKey',
-  'apikey'
+  'apikey',
+  'username'
 ];
 
 type LogContext = {
@@ -58,10 +59,6 @@ function sanitizeForLog(value: unknown, seen = new WeakSet<object>()): unknown {
     return value.toISOString();
   }
 
-  if (Array.isArray(value)) {
-    return value.map((item) => sanitizeForLog(item, seen));
-  }
-
   if (typeof value !== 'object' || value === null) {
     return value;
   }
@@ -70,19 +67,40 @@ function sanitizeForLog(value: unknown, seen = new WeakSet<object>()): unknown {
     return '[Circular]';
   }
 
+  // seen "aktif yol" bazli tutulur: alt agac islendikten sonra deger kumeden
+  // cikarilir. Boylece iki farkli dalda paylasilan ayni referans yanlislikla
+  // [Circular] olarak maskelenmez; yalnizca gercek donguler yakalanir.
   seen.add(value);
 
-  const sanitizedValue: Record<string, unknown> = {};
+  try {
+    if (Array.isArray(value)) {
+      return value.map((item) => sanitizeForLog(item, seen));
+    }
 
-  for (const [key, itemValue] of Object.entries(value as Record<string, unknown>)) {
-    sanitizedValue[key] = isSensitiveKey(key) ? '[MASKED]' : sanitizeForLog(itemValue, seen);
+    const sanitizedValue: Record<string, unknown> = {};
+
+    for (const [key, itemValue] of Object.entries(value as Record<string, unknown>)) {
+      sanitizedValue[key] = isSensitiveKey(key) ? '[MASKED]' : sanitizeForLog(itemValue, seen);
+    }
+
+    return sanitizedValue;
+  } finally {
+    seen.delete(value);
   }
-
-  return sanitizedValue;
 }
 
 function formatValue(value: unknown) {
-  const jsonValue = JSON.stringify(sanitizeForLog(value), null, 2);
+  // JSON.stringify function/symbol icin undefined doner, BigInt icin TypeError
+  // firlatir; loglama hicbir kosulda testin kendisini bozmamali.
+  let jsonValue: string | undefined;
+
+  try {
+    jsonValue = JSON.stringify(sanitizeForLog(value), null, 2);
+  } catch {
+    jsonValue = undefined;
+  }
+
+  jsonValue ??= String(value);
 
   if (jsonValue.length <= env.logging.maxBodyLength) {
     return jsonValue;
@@ -132,15 +150,19 @@ function writeLog(level: keyof typeof logLevels, title: string, value?: unknown)
     return;
   }
 
+  // CI sistemleri hatalari stderr'de bekler; error/warn dogru stream'e gider.
+  const writeLine =
+    level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
+
   const timestamp = new Date().toISOString();
   const prefix = `[${timestamp}] [${level.toUpperCase()}]${getContextPrefix()}`;
 
   if (value === undefined) {
-    console.log(`${prefix} ${title}`);
+    writeLine(`${prefix} ${title}`);
     return;
   }
 
-  console.log(`${prefix} ${title}\n${formatValue(value)}`);
+  writeLine(`${prefix} ${title}\n${formatValue(value)}`);
 }
 
 /**
@@ -177,9 +199,11 @@ export function logInfo(title: string, value?: unknown) {
 
 /**
  * Dikkat cekmesi gereken bilgi logunu ANSI destekleyen terminallerde kalin cyan basar.
+ * TTY olmayan ortamlarda (CI logu, dosyaya yonlendirme) ANSI kodu eklenmez.
  */
 export function logHighlight(title: string, value?: unknown) {
-  writeLog('info', `\x1b[1;36m${title}\x1b[0m`, value);
+  const formattedTitle = process.stdout.isTTY ? `\x1b[1;36m${title}\x1b[0m` : title;
+  writeLog('info', formattedTitle, value);
 }
 
 /**
@@ -201,15 +225,25 @@ export function logError(title: string, value?: unknown) {
 /**
  * API request bilgisini merkezi formatta loglar.
  *
- * Body ve header gibi hassas olabilecek değerler sadece `LOG_PAYLOADS=true` ise basılır.
+ * Body, header ve query param gibi hassas olabilecek değerler sadece `LOG_PAYLOADS=true` ise basılır.
  * Testlerde request atmadan hemen önce kullanılabilir.
  */
-export function logApiRequest(method: string, endpoint: string, body?: unknown, headers?: Record<string, unknown>) {
+export function logApiRequest(
+  method: string,
+  endpoint: string,
+  body?: unknown,
+  headers?: Record<string, unknown>,
+  params?: Record<string, string>
+) {
   const logValue: Record<string, unknown> = {
     method,
     endpoint,
     baseUrl: env.baseUrl
   };
+
+  if (params !== undefined) {
+    logValue.params = env.logging.includePayloads ? params : '[LOG_PAYLOADS=false olduğu için params gizlendi]';
+  }
 
   if (body !== undefined) {
     logValue.body = env.logging.includePayloads ? body : '[LOG_PAYLOADS=false olduğu için body gizlendi]';

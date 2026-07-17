@@ -9,7 +9,7 @@
  * Curl karşılığı:
  * ?PageSize=10&Page=1
  */
-export function getAllMusteriKartiPagingParams(
+export function getAllMusteriKartiWithPagingParams(
   overrides: Record<string, string> = {}
 ): Record<string, string> {
   return {

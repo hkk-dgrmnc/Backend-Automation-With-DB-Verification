@@ -134,7 +134,12 @@ function findMatchingBrace(text: string, openBraceIndex: number): number {
   throw new Error('TypeScript dosyasinda kapanmamis suslu parantez bulundu.');
 }
 
-function getDepthAt(text: string, openBraceIndex: number, targetIndex: number): number {
+interface DepthResult {
+  depth: number;
+  inCode: boolean;
+}
+
+function getDepthAt(text: string, openBraceIndex: number, targetIndex: number): DepthResult {
   let depth = 0;
   let quote: string | undefined;
   let escaped = false;
@@ -195,7 +200,7 @@ function getDepthAt(text: string, openBraceIndex: number, targetIndex: number): 
     }
   }
 
-  return depth;
+  return { depth, inCode: !quote && !lineComment && !blockComment };
 }
 
 interface PropertyLocation {
@@ -210,13 +215,23 @@ function findTopLevelProperty(
   objectValueOnly = false
 ): PropertyLocation | undefined {
   const suffix = objectValueOnly ? '\\s*\\{' : '';
-  const propertyPattern = new RegExp(`(^|\\n)[ \\t]*${escapeRegExp(propertyName)}\\s*:${suffix}`, 'g');
+  // Satir basi sarti yok: kompakt/tek satirlik objelerde de property bulunur.
+  const propertyPattern = new RegExp(`(^|[^A-Za-z0-9_$])${escapeRegExp(propertyName)}\\s*:${suffix}`, 'g');
+  // Arama hedef objenin kapanis parantezinde biter; dosyadaki baska bir
+  // export icindeki ayni isimli property'ye yazilmaz.
+  const objectCloseBraceIndex = findMatchingBrace(text, objectOpenBraceIndex);
   let match: RegExpExecArray | null;
 
   while ((match = propertyPattern.exec(text)) !== null) {
     const propertyStartIndex = match.index + match[1].length;
 
-    if (getDepthAt(text, objectOpenBraceIndex, propertyStartIndex) === 1) {
+    if (propertyStartIndex <= objectOpenBraceIndex || propertyStartIndex >= objectCloseBraceIndex) {
+      continue;
+    }
+
+    const depthResult = getDepthAt(text, objectOpenBraceIndex, propertyStartIndex);
+
+    if (depthResult.depth === 1 && depthResult.inCode) {
       const openBraceIndex = objectValueOnly ? text.indexOf('{', propertyStartIndex) : undefined;
       return { openBraceIndex, propertyStartIndex };
     }
@@ -246,9 +261,22 @@ function appendObjectProperty(
   return `${text.slice(0, openBraceIndex + 1)}${content}${text.slice(closeBraceIndex)}`;
 }
 
-function getPropertyLine(text: string, propertyStartIndex: number): string {
-  const lineEndIndex = text.indexOf('\n', propertyStartIndex);
-  return text.slice(propertyStartIndex, lineEndIndex === -1 ? text.length : lineEndIndex).trim();
+// Karsilastirmalar format farklarina (tirnak stili, bosluk, satir sonu) takilmasin
+// diye normalize edilir; prettier gibi araclarin dokundugu dosyalarda yanlis
+// "cakisma" hatasi uretilmez.
+function normalizeForComparison(text: string): string {
+  return text.replace(/["`]/g, "'").replace(/\s+/g, ' ').trim();
+}
+
+function getPropertyStringValue(text: string, propertyStartIndex: number): string | undefined {
+  const slice = text.slice(propertyStartIndex, propertyStartIndex + 1000);
+  const valueMatch = slice.match(/^[A-Za-z0-9_$']+\s*:\s*('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")/);
+
+  if (!valueMatch) {
+    return undefined;
+  }
+
+  return valueMatch[1].slice(1, -1).replace(/\\(['"\\])/g, '$1');
 }
 
 function updateEndpoints(
@@ -279,10 +307,10 @@ function updateEndpoints(
   const methodProperty = findTopLevelProperty(content, endpointGroupProperty.openBraceIndex!, methodName);
 
   if (methodProperty) {
-    const propertyLine = getPropertyLine(content, methodProperty.propertyStartIndex);
-    const expectedPropertyLine = `${methodName}: '${escapedPath}'`;
+    // Deger bazli karsilastirma: tirnak stili veya format farki cakisma sayilmaz.
+    const existingPath = getPropertyStringValue(content, methodProperty.propertyStartIndex);
 
-    if (propertyLine.replace(/,$/, '') !== expectedPropertyLine) {
+    if (existingPath !== endpointPath) {
       throw new Error(
         `Endpoint cakismasi: endpoints.${endpointGroup}.${methodName} zaten var fakat ` +
           `${endpointPath} path'i ile ayni degil.`
@@ -306,7 +334,6 @@ function formatPropertyName(name: string): string {
 }
 
 function renderClientMethod(
-  domain: string,
   endpointGroup: string,
   methodName: string,
   parsedCurl: ParsedCurl
@@ -327,13 +354,14 @@ function renderClientMethod(
 
   parameters.push('headers: Record<string, string> = {}');
 
-  const safeHeaders = { ...parsedCurl.safeHeaders };
+  // Header sirasi deterministiktir: once accept, sonra content-type.
+  const safeHeaders: Record<string, string> = {
+    accept: parsedCurl.safeHeaders.accept ?? 'application/json'
+  };
 
-  if (!safeHeaders.accept) {
-    safeHeaders.accept = 'application/json';
-  }
-
-  if (parsedCurl.body && !safeHeaders['content-type']) {
+  if (parsedCurl.safeHeaders['content-type']) {
+    safeHeaders['content-type'] = parsedCurl.safeHeaders['content-type'];
+  } else if (parsedCurl.body) {
     safeHeaders['content-type'] = 'application/json';
   }
 
@@ -372,7 +400,7 @@ function updateClient(
 ): void {
   const relativePath = `src/clients/${domain}Client.ts`;
   const className = `${toPascalCase(domain)}Client`;
-  const renderedMethod = indent(renderClientMethod(domain, endpointGroup, methodName, parsedCurl), 2);
+  const renderedMethod = indent(renderClientMethod(endpointGroup, methodName, parsedCurl), 2);
 
   if (!workspace.exists(relativePath)) {
     workspace.update(
@@ -393,25 +421,6 @@ function updateClient(
   }
 
   let content = workspace.read(relativePath);
-  const methodPattern = new RegExp(`\\basync\\s+${escapeRegExp(methodName)}\\s*\\(`);
-  const methodMatch = content.match(methodPattern);
-
-  if (methodMatch) {
-    const methodStartIndex = methodMatch.index!;
-    const nextMethodIndex = content.indexOf('\n  async ', methodStartIndex + methodMatch[0].length);
-    const methodText = content.slice(methodStartIndex, nextMethodIndex === -1 ? content.length : nextMethodIndex);
-    const expectedRequestCall = `this.request.${parsedCurl.method.toLowerCase()}(endpoints.${endpointGroup}.${methodName},`;
-
-    if (!methodText.includes(expectedRequestCall)) {
-      throw new Error(
-        `Client metot cakismasi: ${className}.${methodName} zaten var fakat ` +
-          `${parsedCurl.method} endpoints.${endpointGroup}.${methodName} cagrisi ile ayni degil.`
-      );
-    }
-
-    return;
-  }
-
   const classDeclarationIndex = content.indexOf(`export class ${className}`);
 
   if (classDeclarationIndex === -1) {
@@ -420,6 +429,29 @@ function updateClient(
 
   const classOpenBraceIndex = content.indexOf('{', classDeclarationIndex);
   const classCloseBraceIndex = findMatchingBrace(content, classOpenBraceIndex);
+  const methodPattern = new RegExp(`\\basync\\s+${escapeRegExp(methodName)}\\s*\\(`);
+  const methodMatch = content.match(methodPattern);
+
+  if (methodMatch) {
+    const methodStartIndex = methodMatch.index!;
+    const nextMethodIndex = content.indexOf('\n  async ', methodStartIndex + methodMatch[0].length);
+    const methodEndIndex =
+      nextMethodIndex === -1 || nextMethodIndex > classCloseBraceIndex ? classCloseBraceIndex : nextMethodIndex;
+    const existingMethodText = content.slice(methodStartIndex, methodEndIndex);
+
+    // Metnin tamami (imza dahil) karsilastirilir. Yalnizca endpoint cagrisina
+    // bakmak, ayni metot adiyla query'li/query'siz iki farkli imzanin sessizce
+    // birbirine karismasina (params'in header olarak gitmesine) izin verirdi.
+    if (normalizeForComparison(existingMethodText) !== normalizeForComparison(renderedMethod)) {
+      throw new Error(
+        `Client metot cakismasi: ${className}.${methodName} zaten var fakat uretilecek metotla ` +
+          'imzasi veya icerigi ayni degil.'
+      );
+    }
+
+    return;
+  }
+
   const beforeCloseBrace = content.slice(0, classCloseBraceIndex).trimEnd();
   content = `${beforeCloseBrace}\n\n${renderedMethod}\n${content.slice(classCloseBraceIndex)}`;
   workspace.update(relativePath, content);
@@ -478,7 +510,7 @@ function updateDataFile(
       nextFunctionIndex === -1 ? content.length : nextFunctionIndex
     ).trim();
 
-    if (existingFunctionText !== functionText.trim()) {
+    if (normalizeForComparison(existingFunctionText) !== normalizeForComparison(functionText)) {
       throw new Error(
         `Test data cakismasi: ${relativePath} icindeki ${functionName} zaten farkli data ile tanimli.`
       );
@@ -491,11 +523,13 @@ function updateDataFile(
 }
 
 function updateTestData(workspace: Workspace, domain: string, methodName: string, parsedCurl: ParsedCurl): TestData {
-  const pascalCaseMethodName = toPascalCase(methodName);
   const data: TestData = {};
 
+  // Factory adi her zaman metot adindan turetilir. Onek ozel durumlari
+  // ('cards' ve 'getCards' gibi) farkli metotlarin ayni factory adina
+  // cokmesine yol aciyordu.
   if (Object.keys(parsedCurl.queryParams).length > 0) {
-    const functionName = methodName.startsWith('get') ? `${methodName}Params` : `get${pascalCaseMethodName}Params`;
+    const functionName = `${methodName}Params`;
     updateDataFile(
       workspace,
       `tests/data/${domain}Params.ts`,
@@ -506,8 +540,7 @@ function updateTestData(workspace: Workspace, domain: string, methodName: string
   }
 
   if (parsedCurl.body) {
-    const functionName =
-      methodName.startsWith('create') ? `${methodName}Payload` : `create${pascalCaseMethodName}Payload`;
+    const functionName = `${methodName}Payload`;
     updateDataFile(
       workspace,
       `tests/data/${domain}Payloads.ts`,
@@ -571,10 +604,17 @@ function ensureNamespaceImport(content: string, modulePath: string, namespace: s
 function ensureApiTestFixtureImport(content: string): string {
   const modulePath = '../fixtures/apiTest';
   const modulePattern = escapeRegExp(modulePath);
-  const importPattern = new RegExp(`import\\s+\\{[^}]*\\}\\s+from\\s+'${modulePattern}';`);
+  const importPattern = new RegExp(`import\\s+\\{([^}]*)\\}\\s+from\\s+'${modulePattern}';`);
+  const match = content.match(importPattern);
 
-  if (importPattern.test(content)) {
-    return content.replace(importPattern, `import { expect, test } from '${modulePath}';`);
+  if (match) {
+    // Mevcut import'taki diger isimler korunur; expect ve test eklenir.
+    const currentNames = match[1]
+      .split(',')
+      .map((name) => name.trim())
+      .filter(Boolean);
+    const updatedNames = [...new Set([...currentNames, 'expect', 'test'])].sort();
+    return content.replace(match[0], `import { ${updatedNames.join(', ')} } from '${modulePath}';`);
   }
 
   return ensureNamedImport(content, modulePath, ['expect', 'test']);
@@ -616,13 +656,19 @@ function renderTest(
   lines.push('');
 
   const logArguments: string[] = [`'${parsedCurl.method}'`, `endpoints.${endpointGroup}.${methodName}`];
+  const includeParams = Boolean(data.paramsFunctionName);
+  const includeHeaders = parsedCurl.requiresAuth || includeParams;
 
-  if (data.payloadFunctionName || parsedCurl.requiresAuth) {
+  if (data.payloadFunctionName || includeHeaders) {
     logArguments.push(data.payloadFunctionName ? 'payload' : 'undefined');
   }
 
-  if (parsedCurl.requiresAuth) {
-    logArguments.push('authHeaders');
+  if (includeHeaders) {
+    logArguments.push(parsedCurl.requiresAuth ? 'authHeaders' : 'undefined');
+  }
+
+  if (includeParams) {
+    logArguments.push('params');
   }
 
   lines.push(`    logger.logApiRequest(${logArguments.join(', ')});`);
@@ -690,8 +736,12 @@ function updateSpec(
 
   let content = workspace.read(relativePath);
 
-  if (content.includes(marker)) {
-    if (!content.includes(testText)) {
+  // Marker tam satir olarak aranir: substring kontrolu, bir metot adi digerinin
+  // oneki oldugunda (getAll / getAllWithPaging) yanlis cakisma uretiyordu.
+  const markerPattern = new RegExp(`^[ \\t]*${escapeRegExp(marker)}[ \\t]*$`, 'm');
+
+  if (markerPattern.test(content)) {
+    if (!normalizeForComparison(content).includes(normalizeForComparison(testText))) {
       throw new Error(
         `Spec cakismasi: ${relativePath} icinde ${domain}.${methodName} testi zaten farkli icerikle tanimli.`
       );

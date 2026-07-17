@@ -46,11 +46,12 @@ npm test
 Gercek API testleri varsayilan olarak kapali gelir. Bu sayede local veya CI
 ortaminda yanlislikla gercek ortama istek atilmaz.
 
-`.env.example` dosyasini `.env` olarak kopyalayip gerekli degerleri doldurun:
+`.env.example` dosyasini `.env` olarak kopyalayip gerekli degerleri doldurun.
+Gercek ortam adresi ve credential'lar yalnizca yerel `.env` dosyasinda yasar:
 
 ```env
 TESTS_ENABLED=false
-BASE_URL=https://dev-mys.ptt.gov.tr
+BASE_URL=https://api.example.local
 AUTH_USERNAME=
 AUTH_PASSWORD=
 ```
@@ -122,6 +123,8 @@ tests/
   unit/           Helper ve utility unit testleri
 tools/
   api-test-generator/
+docs/             Confluence proje dokumani taslagi
+.github/          CI workflow tanimlari
 ```
 
 ## Mimari Kurallar
@@ -133,13 +136,13 @@ Dogru kullanim:
 
 ```ts
 endpoints.auth.login;
-endpoints.musteriKarti.getAllWithPaging;
+endpoints.musteriKarti.getAllMusteriKartiWithPaging;
 ```
 
 Base URL `.env` uzerinden gelir:
 
 ```env
-BASE_URL=https://dev-mys.ptt.gov.tr
+BASE_URL=https://api.example.local
 ```
 
 Client dosyalari yalnizca API request atar ve `APIResponse` dondurur. Client
@@ -191,8 +194,14 @@ src/database/repositories/
 Database sadece API sonucunu desteklemek icin kullanilir. Test dosyasinda raw
 SQL yazilmaz ve test icinde database connection olusturulmaz.
 
+Baglanti dayanikliligi config'ten yonetilir: `DB_CONNECT_TIMEOUT_MS`,
+`DB_IDLE_TIMEOUT_MS`, `DB_QUERY_TIMEOUT_MS` ve `DB_SSL_REJECT_UNAUTHORIZED`
+(default acik). Eksik zorunlu DB alanlari pool ilk olusturulurken net hatayla
+raporlanir; API-only testler bundan etkilenmez.
+
 Yeni bir domain icin database verification gerekiyorsa yapi su sekilde
-genisletilir:
+genisletilir (su an repoda ornek yoktur; `exampleQueries.ts` ve
+`exampleRepository.ts` sablon iskelet olarak durur):
 
 ```txt
 src/database/queries/<domain>Queries.ts

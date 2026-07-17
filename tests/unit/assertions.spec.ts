@@ -27,4 +27,19 @@ test.describe('Assertion helpers', () => {
   test('rejects invalid calendar dates', () => {
     expect(() => apiAssert.expectIsoDateString('2026-02-31T12:34:56Z')).toThrow();
   });
+
+  test('matches headers case-insensitively', () => {
+    const response = {
+      headers: () => ({ 'content-type': 'application/json; charset=utf-8' })
+    } as unknown as Parameters<typeof apiAssert.expectHeaderContains>[0];
+
+    apiAssert.expectHeaderContains(response, 'Content-Type', 'application/json');
+    expect(() => apiAssert.expectHeaderContains(response, 'Content-Type', 'text/html')).toThrow();
+  });
+
+  test('treats dotted field names as nested paths', () => {
+    // toHaveProperty nokta iceren adi path olarak yorumlar: 'a.b' -> a.b
+    apiAssert.expectObjectHasFields({ a: { b: 1 } }, ['a.b']);
+    expect(() => apiAssert.expectObjectHasFields({ 'a.b': 1 }, ['a.b'])).toThrow();
+  });
 });

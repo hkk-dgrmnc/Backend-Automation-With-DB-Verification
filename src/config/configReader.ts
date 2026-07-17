@@ -12,6 +12,12 @@ function findEnvPath(startDirectory: string) {
       return envPath;
     }
 
+    // Arama proje sinirinda durur: package.json goruldugu dizin proje kokudur.
+    // Boylece ust dizinlerdeki alakasiz bir projenin .env dosyasi yuklenmez.
+    if (existsSync(resolve(currentDirectory, 'package.json'))) {
+      return undefined;
+    }
+
     const parentDirectory = dirname(currentDirectory);
 
     if (parentDirectory === currentDirectory) {

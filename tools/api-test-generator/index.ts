@@ -17,10 +17,12 @@ interface ParsedArgs {
   spec?: string;
   'test-name'?: string;
   status?: string;
+  allowedFields?: string[];
 }
 
 function parseArgs(args: string[]): ParsedArgs {
-  const options: ParsedArgs & Record<string, string | boolean | undefined> = {};
+  const options: ParsedArgs & Record<string, string | boolean | string[] | undefined> = {};
+  const allowedFields: string[] = [];
 
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
@@ -34,15 +36,37 @@ function parseArgs(args: string[]): ParsedArgs {
       throw new Error(`Bilinmeyen arguman: ${argument}`);
     }
 
-    const name = argument.slice(2);
-    const value = args[index + 1];
+    // Hem "--name deger" hem "--name=deger" desteklenir; '--' ile baslayan
+    // mesru degerler (orn. --test-name "--edge case") esitlik formuyla verilir.
+    let name: string;
+    let value: string;
+    const separatorIndex = argument.indexOf('=');
 
-    if (!value || value.startsWith('--')) {
-      throw new Error(`${argument} icin deger bulunamadi.`);
+    if (separatorIndex !== -1) {
+      name = argument.slice(2, separatorIndex);
+      value = argument.slice(separatorIndex + 1);
+    } else {
+      name = argument.slice(2);
+      const nextValue = args[index + 1];
+
+      if (nextValue === undefined || nextValue.startsWith('--')) {
+        throw new Error(`${argument} icin deger bulunamadi. Deger '--' ile basliyorsa ${argument}=deger bicimini kullan.`);
+      }
+
+      value = nextValue;
+      index += 1;
+    }
+
+    if (name === 'allow-field') {
+      allowedFields.push(...value.split(',').map((field) => field.trim()).filter(Boolean));
+      continue;
     }
 
     options[name] = value;
-    index += 1;
+  }
+
+  if (allowedFields.length > 0) {
+    options.allowedFields = allowedFields;
   }
 
   return options;
@@ -101,10 +125,13 @@ function inferMethodName(parsedCurl: ReturnType<typeof parseCurl>): string {
 
 function inferDomain(parsedCurl: ReturnType<typeof parseCurl>): string {
   const pathParts = parsedCurl.path.split('/').filter(Boolean);
-  // Skip API route prefix segments like api_musteri, api_kampanya, api
-  const nonApiParts = pathParts.filter((part) => !/^api([_-]|$)/i.test(part));
+  // api_musteri, api, v1 gibi route prefix segmentleri domain adayi degildir.
+  const nonApiParts = pathParts.filter((part) => !/^api([_-]|$)/i.test(part) && !/^v\d+$/i.test(part));
   const candidate = nonApiParts.at(0) ?? pathParts.at(-1) ?? 'api';
-  return toCamelCase(candidate);
+  const domainSuggestion = toCamelCase(candidate);
+
+  // Identifier'a uymayan oneri (orn. sayiyla baslayan segment) default olarak sunulmaz.
+  return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(domainSuggestion) ? domainSuggestion : 'api';
 }
 
 function inferStatus(method: string): number {
@@ -129,7 +156,7 @@ async function main(): Promise<void> {
 
   try {
     const curlText = readCurlFromArgs(args) ?? (await readCurl(terminal));
-    const parsedCurlResult = parseCurl(curlText);
+    const parsedCurlResult = parseCurl(curlText, { allowedFields: args.allowedFields });
     const inferredDomain = inferDomain(parsedCurlResult);
     const inferredClientName = toClientName(inferredDomain);
     const inferredMethodName = inferMethodName(parsedCurlResult);

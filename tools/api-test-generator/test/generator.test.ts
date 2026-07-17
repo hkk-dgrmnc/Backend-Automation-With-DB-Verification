@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import ts from 'typescript';
 import { parseCurl } from '../lib/curlParser';
 import { generateApiTest } from '../lib/generator';
-import { domainFromClientName, inferClientMethodName } from '../lib/naming';
+import { domainFromClientName, inferClientMethodName, toCamelCase, toPascalCase } from '../lib/naming';
 
 function createTempProject(): string {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'api-test-generator-'));
@@ -316,4 +316,253 @@ test('ayni test data fonksiyonu farkli query degeri ile tekrar kullanilamaz', ()
       }),
     /Test data cakismasi/
   );
+});
+
+test('ayni metot adiyla farkli imza uretimi client metot cakismasi verir', () => {
+  const rootDir = createTempProject();
+  const baseOptions = {
+    rootDir,
+    domain: 'customerCard',
+    methodName: 'getCards',
+    testName: 'gets cards successfully',
+    expectedStatus: 200
+  };
+
+  generateApiTest({ ...baseOptions, parsedCurl: parseCurl("curl 'https://example.test/api/cards'") });
+
+  // Ayni metot adi, bu kez query'li: eski imza (headers) ile yeni cagri (params)
+  // sessizce karismamali, yuksek sesle cakisma hatasi vermeli.
+  assert.throws(
+    () =>
+      generateApiTest({
+        ...baseOptions,
+        specFile: 'customerCardPaging.spec.ts',
+        testName: 'gets cards with paging',
+        parsedCurl: parseCurl("curl 'https://example.test/api/cards?Page=1'")
+      }),
+    /Client metot cakismasi/
+  );
+});
+
+test('marker oneki olan metot ayni spec dosyasina eklenebilir', () => {
+  const rootDir = createTempProject();
+  const shared = { rootDir, domain: 'customerCard', expectedStatus: 200 };
+
+  generateApiTest({
+    ...shared,
+    methodName: 'getAllWithPaging',
+    testName: 'gets cards with paging',
+    parsedCurl: parseCurl("curl 'https://example.test/api/cards/GetAllWithPaging?Page=1'")
+  });
+
+  // 'getAll' marker'i 'getAllWithPaging' marker'inin substring'i: yanlis cakisma olmamali.
+  const changedPaths = generateApiTest({
+    ...shared,
+    methodName: 'getAll',
+    testName: 'gets all cards',
+    parsedCurl: parseCurl("curl 'https://example.test/api/cards/GetAll'")
+  });
+
+  assert.ok(changedPaths.includes('tests/specs/customerCard.spec.ts'));
+  assert.match(read(rootDir, 'tests/specs/customerCard.spec.ts'), /api-test-generator:customerCard\.getAll\b/);
+  assertTranspiles(rootDir, changedPaths);
+});
+
+test('kompakt endpoints dosyasina grup bozulmadan metot eklenir', () => {
+  const rootDir = createTempProject();
+  fs.writeFileSync(
+    path.join(rootDir, 'src/config/endpoints.ts'),
+    "export const endpoints = { customerCard: { getAll: '/api/cards/GetAll' } };\n"
+  );
+
+  generateApiTest({
+    rootDir,
+    domain: 'customerCard',
+    methodName: 'getNames',
+    testName: 'gets names',
+    expectedStatus: 200,
+    parsedCurl: parseCurl("curl 'https://example.test/api/cards/GetNames'")
+  });
+
+  const endpointsContent = read(rootDir, 'src/config/endpoints.ts');
+  const groupCount = endpointsContent.match(/customerCard:/g)?.length ?? 0;
+
+  assert.equal(groupCount, 1);
+  assert.match(endpointsContent, /getNames: '\/api\/cards\/GetNames'/);
+  assertTranspiles(rootDir, ['src/config/endpoints.ts']);
+});
+
+test('ayni grup adini iceren ikinci export objesine yazilmaz', () => {
+  const rootDir = createTempProject();
+  fs.writeFileSync(
+    path.join(rootDir, 'src/config/endpoints.ts'),
+    [
+      'export const endpoints = {',
+      '  customerCard: {',
+      "    getAll: '/api/cards/GetAll'",
+      '  }',
+      '};',
+      '',
+      'export const legacyEndpoints = {',
+      '  customerCard: {',
+      "    getOld: '/api/old'",
+      '  }',
+      '};',
+      ''
+    ].join('\n')
+  );
+
+  generateApiTest({
+    rootDir,
+    domain: 'customerCard',
+    methodName: 'getNames',
+    testName: 'gets names',
+    expectedStatus: 200,
+    parsedCurl: parseCurl("curl 'https://example.test/api/cards/GetNames'")
+  });
+
+  const endpointsContent = read(rootDir, 'src/config/endpoints.ts');
+  const legacyIndex = endpointsContent.indexOf('legacyEndpoints');
+
+  assert.match(endpointsContent.slice(0, legacyIndex), /getNames/);
+  assert.equal(endpointsContent.slice(legacyIndex).includes('getNames'), false);
+});
+
+test('cift tirnakli endpoint tanimi ayni path icin cakisma sayilmaz', () => {
+  const rootDir = createTempProject();
+  fs.writeFileSync(
+    path.join(rootDir, 'src/config/endpoints.ts'),
+    'export const endpoints = {\n  customerCard: {\n    getAll: "/api/cards/GetAll"\n  }\n};\n'
+  );
+
+  const changedPaths = generateApiTest({
+    rootDir,
+    domain: 'customerCard',
+    methodName: 'getAll',
+    testName: 'gets all cards',
+    expectedStatus: 200,
+    parsedCurl: parseCurl("curl 'https://example.test/api/cards/GetAll'")
+  });
+
+  assert.equal(changedPaths.includes('src/config/endpoints.ts'), false);
+});
+
+test('farkli metot adlari farkli test data fonksiyonlari uretir', () => {
+  const rootDir = createTempProject();
+
+  generateApiTest({
+    rootDir,
+    domain: 'customerCard',
+    methodName: 'cards',
+    testName: 'lists cards',
+    expectedStatus: 200,
+    parsedCurl: parseCurl("curl 'https://example.test/api/cards/List?Page=1'")
+  });
+
+  generateApiTest({
+    rootDir,
+    domain: 'customerCard',
+    methodName: 'getCards',
+    testName: 'gets cards',
+    expectedStatus: 200,
+    parsedCurl: parseCurl("curl 'https://example.test/api/cards/Get?Page=2'")
+  });
+
+  const paramsContent = read(rootDir, 'tests/data/customerCardParams.ts');
+
+  assert.match(paramsContent, /export function cardsParams\(/);
+  assert.match(paramsContent, /export function getCardsParams\(/);
+});
+
+test('parseCurl -XPOST bitisik formunu ve --json kisayolunu tanir', () => {
+  const attached = parseCurl('curl -XPOST \'https://example.test/api/x\' --data-raw \'{"name":"a"}\'');
+
+  assert.equal(attached.method, 'POST');
+
+  const jsonShortcut = parseCurl('curl \'https://example.test/api/x\' --json \'{"name":"a"}\'');
+
+  assert.equal(jsonShortcut.method, 'POST');
+  assert.deepEqual(jsonShortcut.body, { name: 'a' });
+  assert.equal(jsonShortcut.safeHeaders['content-type'], 'application/json');
+  assert.equal(jsonShortcut.safeHeaders.accept, 'application/json');
+});
+
+test('parseCurl desteklenmeyen data option ve dosya body icin acik hata verir', () => {
+  assert.throws(
+    () => parseCurl("curl 'https://example.test/api/x' --data-urlencode 'name=deneme'"),
+    /--data-urlencode desteklenmiyor/
+  );
+  assert.throws(() => parseCurl("curl 'https://example.test/api/x' -d @payload.json"), /Dosyadan body/);
+});
+
+test('parseCurl bilinmeyen option degerini URL sanmaz', () => {
+  const parsed = parseCurl("curl 'https://example.test/api/cards' --referer 'https://portal.test/some/page'");
+
+  assert.equal(parsed.path, '/api/cards');
+  assert.ok(parsed.warnings.some((warning) => warning.includes('--referer')));
+
+  assert.throws(
+    () => parseCurl("curl 'https://example.test/api/cards' 'https://other.test/x'"),
+    /birden fazla URL/
+  );
+});
+
+test('parseCurl basic auth ve cookie girdilerini sessizce dusurmez', () => {
+  const parsed = parseCurl("curl 'https://example.test/api/x' -u 'user:pass' -b 'session=abc'");
+
+  assert.equal(parsed.requiresAuth, true);
+  assert.ok(parsed.warnings.some((warning) => warning.includes('Basic auth')));
+  assert.ok(parsed.warnings.some((warning) => warning.includes('Cookie')));
+  assert.equal(JSON.stringify(parsed).includes('user:pass'), false);
+  assert.equal(JSON.stringify(parsed).includes('session=abc'), false);
+});
+
+test('parseCurl CRLF ve satir devamlarini normalize eder', () => {
+  const parsed = parseCurl("curl 'https://example.test/api/cards' \\\r\n  -H 'Accept: application/json'");
+
+  assert.equal(parsed.path, '/api/cards');
+  assert.deepEqual(parsed.safeHeaders, { accept: 'application/json' });
+});
+
+test('parseCurl ANSI-C ve cmd caret formatlari icin yonlendirici hata verir', () => {
+  assert.throws(
+    () => parseCurl("curl 'https://example.test/api/x' --data-raw $'{\"name\":\"deneme\"}'"),
+    /ANSI-C quoting/
+  );
+  assert.throws(() => parseCurl('curl ^"https://example.test/api/x^"'), /caret/);
+});
+
+test('parseCurl cift tirnak icindeki backslash karakterlerini korur', () => {
+  const parsed = parseCurl('curl "https://example.test/api/x?p=C:\\temp"');
+
+  assert.equal(parsed.queryParams.p, 'C:\\temp');
+});
+
+test('parseCurl hassas alan kontrolu kelime bazlidir ve allow-field ile asilabilir', () => {
+  const parsed = parseCurl(
+    'curl \'https://example.test/api/x\' --data-raw \'{"maxTokens":5,"isTokenized":true}\''
+  );
+
+  assert.deepEqual(parsed.body, { maxTokens: 5, isTokenized: true });
+
+  assert.throws(
+    () => parseCurl('curl \'https://example.test/api/x\' --data-raw \'{"userPassword":"x"}\''),
+    /hassas alanlar/
+  );
+
+  const allowed = parseCurl("curl 'https://example.test/api/x?tokenCount=3'", { allowedFields: ['tokenCount'] });
+
+  assert.deepEqual(allowed.queryParams, { tokenCount: '3' });
+});
+
+test('turkce karakterler identifier uretiminde translitere edilir', () => {
+  assert.equal(toPascalCase('sözleşme'), 'Sozlesme');
+  assert.equal(toCamelCase('müşteri kartı'), 'musteriKarti');
+  assert.equal(inferClientMethodName('GET', '/api/Müşteri/GetirTümü'), 'getGetirTumu');
+});
+
+test('metot adi HTTP fiilini degil domain aksiyonunu tasir', () => {
+  assert.equal(inferClientMethodName('POST', '/api_musteri/Platform'), 'createPlatform');
+  assert.equal(inferClientMethodName('PUT', '/api/cards/Rename'), 'updateRename');
+  assert.equal(inferClientMethodName('DELETE', '/api/cards/Card'), 'deleteCard');
 });

@@ -10,8 +10,8 @@ export class KampanyaClient {
   ): Promise<APIResponse> {
     return this.request.post(endpoints.kampanya.addKampanyaKategori, {
       headers: {
-        'content-type': 'application/json',
         accept: 'application/json',
+        'content-type': 'application/json',
         ...headers
       },
       data: payload

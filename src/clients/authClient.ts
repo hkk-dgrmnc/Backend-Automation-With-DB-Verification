@@ -10,7 +10,7 @@ export class AuthClient {
   ): Promise<APIResponse> {
     return this.request.post(endpoints.auth.login, {
       headers: {
-        accept: '*/*',
+        accept: 'application/json',
         'content-type': 'application/json',
         ...headers
       },

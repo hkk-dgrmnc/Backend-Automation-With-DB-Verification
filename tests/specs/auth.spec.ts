@@ -3,27 +3,28 @@ import { endpoints } from '../../src/config/endpoints';
 import { env } from '../../src/config/env';
 import * as apiAssert from '../../src/utils/assertions';
 import * as logger from '../../src/utils/logger';
+import * as testDataGenerator from '../../src/utils/testDataGenerator';
 import { cacheAuthToken, extractAuthToken } from '../../src/utils/tokenManager';
 import { readJson } from '../../src/utils/responseHelper';
-import { createLoginPayload } from '../data/authPayloads';
+import { loginPayload } from '../data/authPayloads';
 import { expect, test } from '../fixtures/apiTest';
 
 test.describe('Auth API', () => {
-  test.skip(!env.testsEnabled, 'Gerçek API testleri kapalı. Çalıştırmak için TESTS_ENABLED=true yap.');
+  test.skip(!env.testsEnabled, 'Gercek API testleri kapali. Calistirmak icin TESTS_ENABLED=true yap.');
 
-  test('login returns success and stores auth token for later requests', async ({ apiRequest }) => {
+  test('login returns success and a usable auth token', async ({ apiRequest }) => {
     const authClient = new AuthClient(apiRequest);
-    const loginPayload = createLoginPayload();
+    const payload = loginPayload();
 
-    logger.logApiRequest('POST', endpoints.auth.login, loginPayload);
+    logger.logApiRequest('POST', endpoints.auth.login, payload);
 
-    const response = await authClient.login(loginPayload);
+    const response = await authClient.login(payload);
+
+    await logger.logApiResponseWithBody(response);
 
     apiAssert.expectOkResponse(response);
 
     const body = await readJson(response);
-    logger.logApiResponse(response, body);
-
     const token = extractAuthToken(body);
     cacheAuthToken(token);
 
